@@ -35,7 +35,7 @@ export async function call<T = unknown>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const key = Deno.env.get('UNIPILE_API_KEY');
+  const key = Deno.env.get('UNIPILE_API_KEY'); // Edge Function secret only — never commit it
   if (!key) throw new Error('Unipile is not configured. Set UNIPILE_API_KEY.');
   const res = await fetch(`${BASE}/${encodeURIComponent(account)}/${path.replace(/^\//, '')}`, {
     ...init,
@@ -86,8 +86,9 @@ export function publicIdFromUrl(url: string) {
 
 /** Cheap health check: proves the key and the account session both work. */
 export async function checkAccount(account: string) {
-  const r = await call<{ items?: unknown[] }>(account, `inboxes/${INBOX}/chats?limit=1`);
-  return { connected: true, sampleChats: Array.isArray(r.items) ? r.items.length : 0 };
+  // v2 list responses use `data` (verified live 2026-11-23).
+  const r = await call<{ data?: unknown[] }>(account, `inboxes/${INBOX}/chats?limit=1`);
+  return { connected: true, sampleChats: Array.isArray(r.data) ? r.data.length : 0 };
 }
 
 export const getUser = (account: string, publicId: string) =>
@@ -117,7 +118,7 @@ export const sendInChat = (account: string, chatId: string, text: string) =>
   });
 
 export const listChats = (account: string, cursor?: string) =>
-  call<{ items: unknown[]; next_cursor?: string }>(
+  call<{ data: unknown[]; next_cursor?: string }>(
     account,
     `inboxes/${INBOX}/chats?limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
   );
