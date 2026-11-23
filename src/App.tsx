@@ -2619,6 +2619,9 @@ function SettingsView({ data, change, notify }: Props) {
     </>
   );
 }
+// Google sign-in shows only once the Google provider is configured in Supabase Auth.
+const googleSignIn =
+  (import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_GOOGLE_SIGNIN === '1';
 function SignIn() {
   const [email, setEmail] = useState(''),
     [message, setMessage] = useState(''),
@@ -2632,20 +2635,22 @@ function SignIn() {
         <div className="eyebrow">GERSHON.AI</div>
         <h1>Welcome to Campaign</h1>
         <p>Turn the right prospects into your next conversations.</p>
-        <Button
-          primary
-          className="full-width"
-          onClick={async () => {
-            const { error } = await supabase!.auth.signInWithOAuth({
-              provider: 'google',
-              options: { redirectTo: location.origin },
-            });
-            if (error) setMessage(error.message);
-          }}
-        >
-          Continue with Google
-        </Button>
-        <div className="signin-divider">or sign in with email</div>
+        {googleSignIn && (
+          <Button
+            primary
+            className="full-width"
+            onClick={async () => {
+              const { error } = await supabase!.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: location.origin },
+              });
+              if (error) setMessage(error.message);
+            }}
+          >
+            Continue with Google
+          </Button>
+        )}
+        {googleSignIn && <div className="signin-divider">or sign in with email</div>}
         <form
           onSubmit={async (e) => {
             e.preventDefault();
