@@ -7,3 +7,7 @@ verify_jwt = false
 [functions.linkedin-connect]
 verify_jwt = false
 # Authenticated through a one-use, ten-minute connect request plus provider lookup.
+
+[functions.linkedin-status]
+verify_jwt = true
+# Read-only Unipile v2 sender health check; returns no prospect data.

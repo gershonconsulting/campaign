@@ -11,8 +11,11 @@ Working operator preview and integration foundation on the implementation branch
 - ✅ Full specification v1.0 (docs/SPECIFICATION.md)
 
 ## Open ❌
-- ❌ Decide LinkedIn execution provider (Unipile recommended) and open account
-- ❌ Decide Supabase project (reuse Radar's or new)
+- ✅ Unipile chosen; v2 client in `supabase/functions/_shared/unipile-v2.ts` (tested endpoints: chats, user lookup, invitation, first message)
+- ✅ `linkedin-status` Edge Function deployed to Supabase project `radar` (pkzeeqehwmtnqxdpdesl)
+- ❌ Set secrets `UNIPILE_API_KEY` and `UNIPILE_ACCOUNT_ID` on the radar project (Edge Functions → Secrets); then status check goes green
+- ❌ `linkedin-connect` / `campaign-api` still use Unipile v1 (DSN + hosted auth) — move to v2 once hosted-auth v2 path is confirmed
+- 🟡 Supabase: using Radar's project for functions; campaign migration not yet applied (DB change, needs Olivier's OK)
 - 🟡 M1–M2: frontend workflows, persistence migration and connection endpoints implemented; live database/provider validation pending.
 - ❌ M3: durable executing worker, event ingest and reconciler (pure planner implemented and tested).
 - 🟡 M4: local inbox, dashboard, contacts and exports implemented; live sync, delivery and recurring emails pending.
