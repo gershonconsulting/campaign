@@ -2,10 +2,36 @@
  * Unipile API v2 client (LinkedIn Classic). Server-side only.
  * Endpoints below were tested live on 2026-11-23 (see project note "unipile-api-notes").
  *
- * Secrets (Supabase Edge Function secrets, never VITE_ variables):
- *   UNIPILE_API_KEY     – X-API-KEY credential
- *   UNIPILE_ACCOUNT_ID  – default sender account (acc_…); campaigns pass their own sender id
+ * Key resolution (never in code, never in a VITE_ variable):
+ *   1. Edge Function secret UNIPILE_API_KEY, if set
+ *   2. else Supabase Vault secret `unipile_api_key`, read through the service-role-only
+ *      RPC public.campaign_unipile_key() (radar project, 2026-11-23)
+ * UNIPILE_ACCOUNT_ID overrides the default sender account (Olivier's).
  */
+const DEFAULT_ACCOUNT = 'acc_01m84yrp1bfzxv230q672gh957';
+let cachedKey: string | undefined;
+
+async function apiKey(): Promise<string> {
+  if (cachedKey) return cachedKey;
+  const env = Deno.env.get('UNIPILE_API_KEY');
+  if (env) return (cachedKey = env);
+  const url = Deno.env.get('SUPABASE_URL'),
+    service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !service) throw new Error('Unipile is not configured.');
+  const res = await fetch(`${url}/rest/v1/rpc/campaign_unipile_key`, {
+    method: 'POST',
+    headers: {
+      apikey: service,
+      Authorization: `Bearer ${service}`,
+      'Content-Type': 'application/json',
+    },
+    body: '{}',
+    signal: AbortSignal.timeout(10000),
+  });
+  const key = res.ok ? await res.json() : null;
+  if (typeof key !== 'string' || !key) throw new Error('Unipile key not found in Vault.');
+  return (cachedKey = key);
+}
 const BASE = 'https://api.unipile.com/v2';
 const INBOX = 'CLASSIC_PRIMARY';
 
@@ -25,7 +51,7 @@ export class UnipileError extends Error {
 }
 
 export function accountId(override?: string) {
-  const id = override || Deno.env.get('UNIPILE_ACCOUNT_ID');
+  const id = override || Deno.env.get('UNIPILE_ACCOUNT_ID') || DEFAULT_ACCOUNT;
   if (!id || !/^acc_[a-z0-9]+$/i.test(id)) throw new Error('Unipile account id is not configured.');
   return id;
 }
@@ -35,8 +61,7 @@ export async function call<T = unknown>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const key = Deno.env.get('UNIPILE_API_KEY'); // Edge Function secret only — never commit it
-  if (!key) throw new Error('Unipile is not configured. Set UNIPILE_API_KEY.');
+  const key = await apiKey();
   const res = await fetch(`${BASE}/${encodeURIComponent(account)}/${path.replace(/^\//, '')}`, {
     ...init,
     headers: {

@@ -13,7 +13,8 @@ Working operator preview and integration foundation on the implementation branch
 ## Open ❌
 - ✅ Unipile chosen; v2 client in `supabase/functions/_shared/unipile-v2.ts` (tested endpoints: chats, user lookup, invitation, first message)
 - ✅ `linkedin-status` Edge Function deployed to Supabase project `radar` (pkzeeqehwmtnqxdpdesl)
-- ❌ Set secrets `UNIPILE_API_KEY` and `UNIPILE_ACCOUNT_ID` on the radar project (Edge Functions → Secrets); then status check goes green
+- ✅ Unipile key stored in radar Vault (`unipile_api_key`), read via service-role-only RPC; `linkedin-status` live → connected:true (2026-11-23)
+- ❌ Rotate the Unipile test key before production (it was pasted in chat)
 - ❌ `linkedin-connect` / `campaign-api` still use Unipile v1 (DSN + hosted auth) — move to v2 once hosted-auth v2 path is confirmed
 - 🟡 Supabase: using Radar's project for functions; campaign migration not yet applied (DB change, needs Olivier's OK)
 - 🟡 M1–M2: frontend workflows, persistence migration and connection endpoints implemented; live database/provider validation pending.
