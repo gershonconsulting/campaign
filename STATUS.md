@@ -24,7 +24,8 @@ Working operator preview and integration foundation on the implementation branch
 - ❌ Make this repo private (it contains Gershon campaign data in screenshots, even if blurred)
 
 - ✅ Live at https://campaign.gershon.ai (Pages project `gershon-campaign`, direct upload; build zip on branch `deploy/build`). Demo data + live LinkedIn badge = Connected (2026-11-23)
-- ❌ Real login + saved data: apply workspace migration to radar, create Olivier's Supabase user, add campaign.gershon.ai redirect URL
+- ✅ Workspace migration applied to radar (after fixing CASE-inside-IF bug)
+- ❌ Radar Auth: Site URL → https://campaign.gershon.ai + redirect URL; invite olivier@gershonconsulting.com; insert workspace + owner membership; redeploy with VITE_SUPABASE_URL/ANON_KEY (needs Olivier's yes on auth settings)
 
 ## Known issues
 - A test draft "New campaign" (0 contacts, not started) was created in Botdog during the review — can be deleted.
