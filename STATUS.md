@@ -23,11 +23,11 @@ Working operator preview and integration foundation on the implementation branch
 - ❌ M5: live acceptance tests and pilot.
 - ❌ Make this repo private (it contains Gershon campaign data in screenshots, even if blurred)
 
-- 🟡 Cloudflare Pages project `gershon-campaign` created; build uploaded, deploy click pending Olivier's yes; then attach campaign.gershon.ai (DNS on Cloudflare)
+- ✅ Live at https://campaign.gershon.ai (Pages project `gershon-campaign`, direct upload; build zip on branch `deploy/build`). Demo data + live LinkedIn badge = Connected (2026-11-23)
 - ❌ Real login + saved data: apply workspace migration to radar, create Olivier's Supabase user, add campaign.gershon.ai redirect URL
 
 ## Known issues
 - A test draft "New campaign" (0 contacts, not started) was created in Botdog during the review — can be deleted.
 
-## Deploy route (planned)
-GitHub Actions → Cloudflare Pages (campaign.gershon.ai) + Supabase migrations.
+## Deploy route
+Now: `pnpm build` → zip `dist/` → push to branch `deploy/build` → Cloudflare dashboard Pages › gershon-campaign › Create deployment › upload. Planned: GitHub Actions deploy.yml once CF secrets exist.
