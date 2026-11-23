@@ -2,7 +2,7 @@
 Last updated: 2026-11-23
 
 ## State
-Research + specification phase. No code yet.
+Working operator preview and integration foundation on the implementation branch. Not commissioned for live LinkedIn execution. See `docs/IMPLEMENTATION.md` for delivered features, validation, and remaining work.
 
 ## Done ✅
 - ✅ Botdog reviewed page by page (dashboard, campaigns, 5-step wizard, sequence builder, contacts, inbox, all settings, team dashboard, integrations)
@@ -13,7 +13,10 @@ Research + specification phase. No code yet.
 ## Open ❌
 - ❌ Decide LinkedIn execution provider (Unipile recommended) and open account
 - ❌ Decide Supabase project (reuse Radar's or new)
-- ❌ M1–M5 build (see spec §13)
+- 🟡 M1–M2: frontend workflows, persistence migration and connection endpoints implemented; live database/provider validation pending.
+- ❌ M3: durable executing worker, event ingest and reconciler (pure planner implemented and tested).
+- 🟡 M4: local inbox, dashboard, contacts and exports implemented; live sync, delivery and recurring emails pending.
+- ❌ M5: live acceptance tests and pilot.
 - ❌ Make this repo private (it contains Gershon campaign data in screenshots, even if blurred)
 
 ## Known issues

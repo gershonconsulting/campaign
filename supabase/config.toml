@@ -1,0 +1,9 @@
+project_id = "gershon-campaign"
+
+[functions.campaign-api]
+verify_jwt = false
+# Function validates JWT with auth.getUser; needed for current Supabase signing keys.
+
+[functions.linkedin-connect]
+verify_jwt = false
+# Authenticated through a one-use, ten-minute connect request plus provider lookup.

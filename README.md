@@ -10,3 +10,9 @@ Simple LinkedIn drip-campaign platform for Gershon Consulting. It takes prospect
 | [research/botdog/screenshots/](research/botdog/screenshots/) | 44 screenshots of Botdog (prospect data blurred) |
 
 Status: see [STATUS.md](STATUS.md).
+
+## Application
+
+A working React/Vite operator preview is now included. Run `pnpm install`, then `pnpm dev` (Node 24). Without database configuration it opens a clearly marked, browser-local demo; it does not send LinkedIn actions.
+
+See [implementation and setup](docs/IMPLEMENTATION.md) for what works, the Supabase migration, Cloudflare deployment configuration, and the remaining live-execution work. Build: `pnpm build`. Core checks: `pnpm test`.
