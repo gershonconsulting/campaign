@@ -53,7 +53,15 @@ import {
   maxLimits,
   renderVariables,
 } from './model';
-import { loadData, saveData, isDemo, supabase, providerAction } from './store';
+import {
+  loadData,
+  saveData,
+  isDemo,
+  supabase,
+  providerAction,
+  linkedinStatus,
+  type LinkedInStatus,
+} from './store';
 import { Button, Badge, Avatar, Field, Select, SearchBox, Empty, Modal, Panel } from './ui';
 import Sequence from './Sequence';
 import ImportDialog from './ImportDialog';
@@ -2031,7 +2039,15 @@ function InboxView({ data, change, notify }: Props) {
 }
 function Senders({ data, change, notify }: Props) {
   const [editing, setEditing] = useState<Sender | null>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [live, setLive] = useState<LinkedInStatus | null | undefined>(undefined);
+  useEffect(() => {
+    let on = true;
+    linkedinStatus().then((s) => on && setLive(s));
+    return () => {
+      on = false;
+    };
+  }, []);
   async function connect() {
     setBusy(true);
     try {
@@ -2054,10 +2070,24 @@ function Senders({ data, change, notify }: Props) {
           {busy ? 'Connecting…' : 'Connect LinkedIn account'}
         </Button>
       </Heading>
+      {live !== null && (
+        <div
+          className={`notice live-status ${live?.connected ? 'ok' : live ? 'bad' : ''}`}
+          role="status"
+        >
+          <span className={`live-dot ${live?.connected ? 'ok' : live ? 'bad' : ''}`} />
+          {live === undefined
+            ? 'Checking the live LinkedIn connection…'
+            : live.connected
+              ? `Live LinkedIn connection (Unipile): Connected · checked ${new Date(live.checkedAt || Date.now()).toLocaleTimeString()}`
+              : 'Live LinkedIn connection (Unipile): Not connected. Campaigns will not send until it is restored.'}
+        </div>
+      )}
       {isDemo && (
         <div className="notice">
           <AlertCircle size={18} />
-          This is a sample account. Connect Supabase and Unipile to add real senders.
+          The account cards below are sample data. Real senders appear here once the workspace is
+          linked.
         </div>
       )}
       <div className="sender-grid">

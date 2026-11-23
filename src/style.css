@@ -2525,3 +2525,9 @@ td strong {
     print-color-adjust: exact;
   }
 }
+
+.notice.live-status.ok{background:#ecfdf3;border-color:#abefc6;color:#067647}
+.notice.live-status.bad{background:#fff5f5;border-color:#fecdca;color:#b42318}
+.live-dot{width:10px;height:10px;border-radius:50%;background:#98a2b3;display:inline-block;flex-shrink:0}
+.live-dot.ok{background:#12b76a;box-shadow:0 0 0 4px #d1fadf}
+.live-dot.bad{background:#f04438}
