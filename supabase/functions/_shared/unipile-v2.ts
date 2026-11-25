@@ -85,7 +85,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     /* non-JSON error body */
   }
   if (!res.ok) {
-    const retry = Number(res.headers.get('retry-after')) || undefined;
+    const header = res.headers.get('retry-after');
+    const seconds =
+      header && /^\d+$/.test(header)
+        ? Number(header)
+        : header && Number.isFinite(Date.parse(header))
+          ? Math.ceil((Date.parse(header) - Date.now()) / 1000)
+          : 0;
+    const detail = String(body.detail || body.message || body.title || '');
+    const retry =
+      Math.max(0, seconds) || Number(detail.match(/Retry in (\d+) seconds?/i)?.[1]) || undefined;
     // Never echo request bodies or credentials into errors.
     throw new UnipileError(
       res.status,

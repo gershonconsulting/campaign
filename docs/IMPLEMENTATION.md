@@ -23,7 +23,9 @@ No existing Botdog campaigns or live Gershon services were modified.
 ## Explicit remaining work
 
 The operator preview predates the sending-engine milestones. M1 is the v2 foundation;
-M2–M6 from the November 24 build brief remain open.
+M2 adds the normalized dry-run engine described in [M2-ENGINE.md](M2-ENGINE.md).
+M3–M6 from the November 24 build brief remain open. Olivier deferred the connection
+browser click-through to M4 with reconnect. No M2 production changes were applied.
 
 1. Provision the selected Supabase project; run and validate the migration against Postgres, set up Google/email authentication, and provision owner membership.
 2. Validate the v2 hosted connection in a review environment. M1 uses `POST https://api.unipile.com/v2/auth/link` with lowercase `providers`, `expires_on`, `redirect_uri` and response `link`. The browser returns by GET with `account_id`; a single-use expiring request binds it to a workspace. The server fetches `/v2/accounts/{account_id}` and verifies `provider=linkedin`, `status=running`, and unlocked access before storing a sender. No provider notification POST is expected. See [Hosted Authentication](https://developer.unipile.com/v2.0/docs/authenticate-with-hosted-auth) and [Connection Status](https://developer.unipile.com/v2.0/docs/status-lifecycle), checked November 24, 2026. Reconnect UI remains M4 work.

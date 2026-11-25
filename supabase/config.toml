@@ -11,3 +11,11 @@ verify_jwt = false
 [functions.linkedin-status]
 verify_jwt = true
 # Read-only Unipile v2 sender health check; returns no prospect data.
+
+[functions.campaign-planner]
+verify_jwt = false
+# Dedicated scheduler secret verified by the handler; no browser access.
+
+[functions.campaign-worker]
+verify_jwt = false
+# Dedicated scheduler secret verified by the handler; M2 is dry-run only.

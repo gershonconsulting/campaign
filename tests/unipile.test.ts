@@ -96,6 +96,13 @@ test('v2 provider contract with a fake server', async (t) => {
         (e: unknown) => e instanceof UnipileError && e.retryable && e.retryAfterSeconds === 12,
       );
     });
+    await t.test('429 reads provider retry text without a Retry-After header', async () => {
+      headers = {};
+      await assert.rejects(
+        listChats(account),
+        (e: unknown) => e instanceof UnipileError && e.retryAfterSeconds === 12,
+      );
+    });
     await t.test(
       '403 access restriction is permanent; 5xx is retryable; errors redact provider text',
       async () => {
