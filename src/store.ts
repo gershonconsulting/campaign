@@ -41,3 +41,22 @@ export async function providerAction(action: string, payload: unknown) {
   if (data.error) throw new Error(data.error);
   return data;
 }
+
+/** Live LinkedIn (Unipile) health from the linkedin-status Edge Function. Works in demo mode too. */
+export type LinkedInStatus = {
+  connected: boolean;
+  account?: string;
+  checkedAt?: string;
+  status?: number;
+};
+export async function linkedinStatus(): Promise<LinkedInStatus | null> {
+  const url = env.VITE_LINKEDIN_STATUS_URL,
+    key = env.VITE_LINKEDIN_STATUS_KEY;
+  if (!url || !key) return null;
+  try {
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${key}`, apikey: key } });
+    return (await r.json()) as LinkedInStatus;
+  } catch {
+    return { connected: false };
+  }
+}

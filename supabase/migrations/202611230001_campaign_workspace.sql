@@ -62,7 +62,7 @@ begin
     select value into old_s from jsonb_array_elements(w.data->'senders') where value->>'id'=s->>'id';
     if old_s is null or (s - 'limits' - 'timezone') is distinct from (old_s - 'limits' - 'timezone') then raise exception 'Sender connection facts are server-owned.'; end if;
     for k in select jsonb_object_keys(s->'limits') loop
-      if k not in ('invite','visit','message','inmail','company','react') or (s->'limits'->>k)::int < 1 or (s->'limits'->>k)::int > case k when 'invite' then 40 when 'visit' then 150 when 'message' then 120 when 'inmail' then 30 when 'company' then 100 else 40 end then raise exception 'Invalid sender limit.'; end if;
+      if k not in ('invite','visit','message','inmail','company','react') or (s->'limits'->>k)::int < 1 or (s->'limits'->>k)::int > (case k when 'invite' then 40 when 'visit' then 150 when 'message' then 120 when 'inmail' then 30 when 'company' then 100 else 40 end) then raise exception 'Invalid sender limit.'; end if;
     end loop;
   end loop;
   if jsonb_array_length(p_data->'senders')<>jsonb_array_length(w.data->'senders') then raise exception 'Sender removal requires the provider disconnect flow.'; end if;

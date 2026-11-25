@@ -11,16 +11,24 @@ Working operator preview and integration foundation on the implementation branch
 - ✅ Full specification v1.0 (docs/SPECIFICATION.md)
 
 ## Open ❌
-- ❌ Decide LinkedIn execution provider (Unipile recommended) and open account
-- ❌ Decide Supabase project (reuse Radar's or new)
+- ✅ Unipile chosen; v2 client in `supabase/functions/_shared/unipile-v2.ts` (tested endpoints: chats, user lookup, invitation, first message)
+- ✅ `linkedin-status` Edge Function deployed to Supabase project `radar` (pkzeeqehwmtnqxdpdesl)
+- ✅ Unipile key stored in radar Vault (`unipile_api_key`), read via service-role-only RPC; `linkedin-status` live → connected:true (2026-11-23)
+- ❌ Rotate the Unipile test key before production (it was pasted in chat)
+- ❌ `linkedin-connect` / `campaign-api` still use Unipile v1 (DSN + hosted auth) — move to v2 once hosted-auth v2 path is confirmed
+- 🟡 Supabase: using Radar's project for functions; campaign migration not yet applied (DB change, needs Olivier's OK)
 - 🟡 M1–M2: frontend workflows, persistence migration and connection endpoints implemented; live database/provider validation pending.
 - ❌ M3: durable executing worker, event ingest and reconciler (pure planner implemented and tested).
 - 🟡 M4: local inbox, dashboard, contacts and exports implemented; live sync, delivery and recurring emails pending.
 - ❌ M5: live acceptance tests and pilot.
 - ❌ Make this repo private (it contains Gershon campaign data in screenshots, even if blurred)
 
+- ✅ Live at https://campaign.gershon.ai (Pages project `gershon-campaign`, direct upload; build zip on branch `deploy/build`). Demo data + live LinkedIn badge = Connected (2026-11-23)
+- ✅ Workspace migration applied to radar (after fixing CASE-inside-IF bug)
+- ❌ Radar Auth: Site URL → https://campaign.gershon.ai + redirect URL; invite olivier@gershonconsulting.com; insert workspace + owner membership; redeploy with VITE_SUPABASE_URL/ANON_KEY (needs Olivier's yes on auth settings)
+
 ## Known issues
 - A test draft "New campaign" (0 contacts, not started) was created in Botdog during the review — can be deleted.
 
-## Deploy route (planned)
-GitHub Actions → Cloudflare Pages (campaign.gershon.ai) + Supabase migrations.
+## Deploy route
+Now: `pnpm build` → zip `dist/` → push to branch `deploy/build` → Cloudflare dashboard Pages › gershon-campaign › Create deployment › upload. Planned: GitHub Actions deploy.yml once CF secrets exist.
