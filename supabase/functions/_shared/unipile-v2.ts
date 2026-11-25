@@ -61,8 +61,13 @@ export async function call<T = unknown>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
+  return request<T>(`${encodeURIComponent(account)}/${path.replace(/^\//, '')}`, init);
+}
+
+/** Platform endpoints (accounts and hosted auth) are not account-prefixed. */
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const key = await apiKey();
-  const res = await fetch(`${BASE}/${encodeURIComponent(account)}/${path.replace(/^\//, '')}`, {
+  const res = await fetch(`${BASE}/${path}`, {
     ...init,
     headers: {
       'X-API-KEY': key,
@@ -85,11 +90,36 @@ export async function call<T = unknown>(
     throw new UnipileError(
       res.status,
       String(body.type || body.code || 'provider/error'),
-      `Unipile ${res.status}: ${String(body.title || body.detail || body.message || 'request failed').slice(0, 200)}`,
+      `Unipile request failed (${res.status}).`,
       retry,
     );
   }
   return body as T;
+}
+
+export interface ProviderAccount {
+  id: string;
+  provider: string;
+  name?: string;
+  status: string;
+  is_locked: boolean;
+}
+
+export const getAccount = (id: string) =>
+  request<ProviderAccount>(`accounts/${encodeURIComponent(accountId(id))}`);
+
+export async function createAuthLink(expiresOn: string, redirectUri: string) {
+  const result = await request<{ link: string }>('auth/link', {
+    method: 'POST',
+    body: JSON.stringify({
+      providers: ['linkedin'],
+      expires_on: expiresOn,
+      redirect_uri: redirectUri,
+    }),
+  });
+  if (typeof result.link !== 'string' || new URL(result.link).protocol !== 'https:')
+    throw new Error('Invalid hosted authentication link.');
+  return result.link;
 }
 
 export type NetworkDistance = 'FIRST_DEGREE' | 'SECOND_DEGREE' | 'THIRD_DEGREE' | string;

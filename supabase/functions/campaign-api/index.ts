@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { unipile } from '../_shared/provider.ts';
+import { createAuthLink } from '../_shared/unipile-v2.ts';
 const origin = Deno.env.get('APP_ORIGIN') || 'https://campaign.gershon.ai';
 const cors = {
   'Access-Control-Allow-Origin': origin,
@@ -53,20 +53,11 @@ Deno.serve(async (req) => {
         .select()
         .single();
       if (error) throw error;
-      const result = await unipile('hosted/accounts/link', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'create',
-          providers: ['LINKEDIN'],
-          api_url: Deno.env.get('UNIPILE_DSN'),
-          expiresOn: request.expires_at,
-          name: request.id,
-          notify_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/linkedin-connect?request=${request.id}`,
-          success_redirect_url: `${origin}/#senders`,
-          failure_redirect_url: `${origin}/#senders`,
-        }),
-      });
-      return json({ url: result.url });
+      const url = await createAuthLink(
+        request.expires_at,
+        `${Deno.env.get('SUPABASE_URL')}/functions/v1/linkedin-connect?request=${request.id}`,
+      );
+      return json({ url });
     }
     if (action === 'radar-prospects') {
       if (!workspace.data.clients.some((c: { id: string }) => c.id === payload.clientId))
