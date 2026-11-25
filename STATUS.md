@@ -9,11 +9,11 @@ Last updated: 2026-11-24 (America/La_Paz)
 - ✅ M2: database rolling limiter, shared daily caps, sender windows and jitter.
 - ✅ M2: state machine, retries, provider dedupe, reply cancellation and pause controls.
 - ✅ M2: 20-contact simulation: 16 finished, 3 replied, 1 invite expired.
-- ✅ Local: 43 passing Node tests; 2 multi-connection tests reserved for PostgreSQL CI.
+- ✅ Local: 45 passing Node tests; 2 multi-connection tests reserved for PostgreSQL CI.
 - ✅ Scheduler authentication/kill-switch test, build and five function type checks pass.
 
 ## Open ❌
-- ❌ M2 review and PostgreSQL CI concurrency acceptance.
+- ❌ M2 review and acceptance by Claude (PR #4).
 - ❌ M3: actual provider dispatch, durable send intent and five-prospect pilot.
 - ❌ M4: webhooks, reconcile, inbox, reconnect and connection browser click-through.
 - ❌ M5: inspect Radar schema; import/write-back, metrics and Resend daily report.

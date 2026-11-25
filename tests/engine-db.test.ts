@@ -421,6 +421,62 @@ test('normalized PostgreSQL execution engine', { timeout: 180_000 }, async (t) =
         Date.parse('2026-11-25T13:30:00Z'),
       );
     });
+    await t.test('completion rechecks a cap lowered after claim', async () => {
+      const f = await fixture({ invites: 2 });
+      await lookup(f);
+      await visit(f);
+      await plan();
+      await q(
+        `update campaign_engine.sender_daily_counters set invites_sent=1 where sender_account_id=$1`,
+        [f.sender],
+      );
+      const a = await claim();
+      assert.equal(a.type, 'invite');
+      await q('update campaign_engine.sender_accounts set daily_invite_limit=1 where id=$1', [
+        f.sender,
+      ]);
+      assert.equal(await finish(a), false);
+      assert.equal(await state(f.contacts[0]), 'looked_up');
+      assert.equal(
+        await scalar(
+          'select invites_sent v from campaign_engine.sender_daily_counters where sender_account_id=$1',
+          [f.sender],
+        ),
+        1,
+      );
+    });
+    await t.test(
+      'completion counts against the sender-local date when a lease crosses midnight',
+      async () => {
+        const late = '2026-11-23T23:58:00Z',
+          next = '2026-11-24T00:01:00Z';
+        const f = await fixture({ now: late });
+        await q(
+          `update campaign_engine.sender_accounts set timezone='UTC',working_hours_start='00:00',working_hours_end='23:59' where id=$1`,
+          [f.sender],
+        );
+        await lookup(f, late);
+        await visit(f, late);
+        await plan(late);
+        const a = await claim(late);
+        assert.equal(a.type, 'invite');
+        assert.equal(await finish(a, next), true);
+        assert.equal(
+          await scalar(
+            `select invites_sent v from campaign_engine.sender_daily_counters where sender_account_id=$1 and date='2026-11-23'`,
+            [f.sender],
+          ),
+          0,
+        );
+        assert.equal(
+          await scalar(
+            `select invites_sent v from campaign_engine.sender_daily_counters where sender_account_id=$1 and date='2026-11-24'`,
+            [f.sender],
+          ),
+          1,
+        );
+      },
+    );
     await t.test(
       'spacing is reserved atomically and delays all sends from the same sender',
       async () => {
@@ -622,23 +678,30 @@ test('normalized PostgreSQL execution engine', { timeout: 180_000 }, async (t) =
           user,
           f.workspace,
         ]);
-        await q(`select set_config('request.jwt.claim.sub',$1,false)`, [user]);
-        await db.exec('set role authenticated');
+        // Pin the role to one connection. Pool.query can replace a connection
+        // after a deliberately denied query; that replacement is superuser.
+        const restricted = real ? await db.connect() : db;
+        await restricted.query(`select set_config('request.jwt.claim.sub',$1,false)`, [user]);
+        await restricted.query('set role authenticated');
         try {
-          const rows = await q(
+          const { rows } = await restricted.query(
             'select distinct workspace_id from campaign_engine.campaign_contacts',
           );
           assert.deepEqual(rows, [{ workspace_id: f.workspace }]);
           await assert.rejects(
-            q('update campaign_engine.campaign_contacts set state=$1 where id=$2', [
+            restricted.query('update campaign_engine.campaign_contacts set state=$1 where id=$2', [
               'finished',
               f.contacts[0],
             ]),
             /permission denied/,
           );
-          await assert.rejects(claim(), /permission denied/);
+          await assert.rejects(
+            restricted.query('select public.campaign_engine_claim($1)', [BASE]),
+            /permission denied/,
+          );
         } finally {
-          await db.exec('reset role');
+          await restricted.query('reset role');
+          if (real) restricted.release();
         }
       },
     );

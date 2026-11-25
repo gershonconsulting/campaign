@@ -2,7 +2,7 @@
 
 The engine executes from normalized PostgreSQL records, independently of the browser's draft snapshot. It has no provider dispatch path. `CAMPAIGN_SENDING_ENABLED` defaults to false; setting it to `true` returns 503 before any work. Sender/counter/identity records are constrained to `dry_run`. Synthetic provider, chat and invite IDs start with `dry-run:` and must never be promoted into live records.
 
-The M1 connection click-through is deferred to M4 with reconnect, as Olivier requested. M2 is stacked on PR #3; it does not merge M1 or deploy any functions or migrations.
+The M1 connection click-through is deferred to M4 with reconnect, as Olivier requested. M1 PR #3 has been merged; M2 targets the preview implementation branch. M2 does not deploy any functions or migrations.
 
 ## Database and execution
 

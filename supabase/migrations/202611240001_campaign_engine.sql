@@ -388,7 +388,7 @@ end $$;
 
 create function public.campaign_engine_complete(p_action uuid,p_token uuid,p_now timestamptz default now()) returns boolean
 language plpgsql security definer set search_path=pg_catalog,campaign_engine,pg_temp as $$
-declare a campaign_actions; ct campaign_contacts; s sender_accounts; st campaign_steps; owner uuid; rendered text; begin
+declare a campaign_actions; ct campaign_contacts; s sender_accounts; st campaign_steps; owner uuid; rendered text; usage sender_daily_counters; begin
   -- Sender -> action -> contact lock order matches claim/retry.
   select s0.* into s from sender_accounts s0 join campaign_actions a0 on a0.sender_account_id=s0.id where a0.id=p_action for update of s0;
   select * into a from campaign_actions where id=p_action for update;
@@ -399,6 +399,19 @@ declare a campaign_actions; ct campaign_contacts; s sender_accounts; st campaign
   end if;
   if ct.state in ('finished','replied','failed','removed','invite_expired') then
     update campaign_actions set status='skipped',claim_token=null,error='Contact stopped' where id=a.id; return false;
+  end if;
+  if a.type in ('invite','message','reply') then
+    -- Recheck at completion: a lease can cross local midnight or an operator
+    -- can lower the cap after claim. Count on the actual completion date.
+    insert into sender_daily_counters(workspace_id,sender_account_id,date)
+      values(s.workspace_id,s.id,(p_now at time zone s.timezone)::date) on conflict do nothing;
+    select * into usage from sender_daily_counters where sender_account_id=s.id and date=(p_now at time zone s.timezone)::date for update;
+    if (a.type='invite' and usage.invites_sent>=s.daily_invite_limit) or
+      (a.type in ('message','reply') and usage.messages_sent>=s.daily_message_limit) then
+      update campaign_actions set status='pending',claim_token=null,claimed_at=null,
+        scheduled_for=next_window(s.id,(((p_now at time zone s.timezone)::date+1)+time '00:00') at time zone s.timezone) where id=a.id;
+      return false;
+    end if;
   end if;
   if a.type='lookup' then
     -- Deterministic fake identity; never a real LinkedIn provider ID.
@@ -441,7 +454,7 @@ declare a campaign_actions; ct campaign_contacts; s sender_accounts; st campaign
     if a.type in ('invite','message','reply') then
       update sender_daily_counters set invites_sent=invites_sent+case when a.type='invite' then 1 else 0 end,
         messages_sent=messages_sent+case when a.type in ('message','reply') then 1 else 0 end
-        where sender_account_id=s.id and date=(a.claimed_at at time zone s.timezone)::date;
+        where sender_account_id=s.id and date=(p_now at time zone s.timezone)::date;
       update sender_accounts set next_send_at=next_send_at+(p_now-a.claimed_at) where id=s.id;
     end if;
   end if;
