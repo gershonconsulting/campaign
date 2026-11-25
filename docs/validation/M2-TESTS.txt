@@ -1,0 +1,62 @@
+(node:16360) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ normalizes profile URLs and rejects unrelated destinations (3.5885ms)
+✔ variables resolve fallbacks and report missing values (5.5033ms)
+✔ imports reject duplicates within the same batch and active client campaigns (47.2787ms)
+✔ blacklist rules are scoped to the relevant client (3.5855ms)
+✔ start validation catches missing sender, prospect and variable data (4.2193ms)
+✔ working hours respect timezone, weekends and daylight saving (181.0045ms)
+✔ reply, blacklist, kill switch and disconnection prevent sending (7.1748ms)
+✔ quotas apply across campaigns on the same sender (5.7048ms)
+✔ planner paces sends, claims only one per sender and advances after success (5.5829ms)
+✔ message conditions require a new thread when requested (1.5834ms)
+(node:41632) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ normalized PostgreSQL execution engine
+  ✔ migration installs every normalized table with RLS and service-only RPCs (23.2334ms)
+  ✔ working window handles exact minutes, weekends, local dates and DST (194.6788ms)
+  ✔ database rolling limiter allows eight requests, then waits until the oldest expires (49.0246ms)
+  ✔ first-degree contacts skip invitation; visits and lookup do not count as sends (109.217ms)
+  ✔ invitation acceptance schedules delayed messages; reply cancels work and is idempotent (186.264ms)
+  ✔ acceptance timeout expires without withdrawing an invitation (98.1781ms)
+  ✔ idempotency, stale claims and fencing prevent duplicate progress or counters (56.0794ms)
+  ✔ per-sender caps are shared by campaigns and reset at sender-local midnight (91.7843ms)
+  ✔ message quotas are shared across campaigns on one sender (125.7288ms)
+  ✔ spacing is reserved atomically and delays all sends from the same sender (83.9765ms)
+  ✔ 429 preserves attempt budget; 5xx retries after 1, 5, 15 minutes then stops (53.2823ms)
+  ✔ 403 restriction returns to invite path and safely retries the same message after acceptance (140.6397ms)
+  ✔ reply racing a claimed action invalidates the claim before completion (56.5461ms)
+  ✔ duplicates across completed campaigns retain provider ownership (38.9927ms)
+  ✔ started steps are locked and cross-workspace foreign keys reject mixing (55.6899ms)
+  ✔ contact pause/resume/remove and sender health prevent queued or claimed progress (91.2478ms)
+  ✔ RLS exposes only the current workspace and browser roles cannot mutate execution (31.318ms)
+  ✔ templates validate real values, fallbacks, unknown variables and line breaks (36.4392ms)
+  ✔ waiting invitees do not starve other contacts in a bounded planner batch (28.9323ms)
+  ✔ 20 fake contacts progress over simulated days with redacted dry-run logs (3030.2852ms)
+  ﹣ overlapping workers use SKIP LOCKED without double-claiming (0.9562ms) # SKIP
+  ﹣ concurrent claims for one sender and global token reservations remain serialized (0.1331ms) # SKIP
+✔ normalized PostgreSQL execution engine (9497.2ms)
+ℹ Simulation: 20 contacts; 20 lookups; 20 visits; 12 invites; 51 messages; 16 finished; 3 replied; 1 invite_expired. No provider calls.
+(node:41740) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ v2 provider contract with a fake server
+  ✔ hosted auth uses the platform route and v2 field names (155.9422ms)
+  ✔ account verification is not account-prefixed (5.1361ms)
+  ✔ rejects malformed account IDs before fetching (2.3489ms)
+  ✔ non-ASCII public identifiers are URL encoded (1.5888ms)
+  ✔ invites enforce 300 characters and preserve line breaks (2.0618ms)
+  ✔ first messages use users_ids array; replies use chat route (2.3583ms)
+  ✔ chat pagination uses data, next_cursor and a maximum of 25 (2.3795ms)
+  ✔ 429 exposes retry delay and retryable classification (4.5893ms)
+  ✔ 429 reads provider retry text without a Retry-After header (2.2991ms)
+  ✔ 403 access restriction is permanent; 5xx is retryable; errors redact provider text (2.0458ms)
+  ✔ hosted auth rejects non-HTTPS links (1.1618ms)
+✔ v2 provider contract with a fake server (188.5976ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 10270.7523

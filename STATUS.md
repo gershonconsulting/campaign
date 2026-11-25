@@ -2,32 +2,33 @@
 Last updated: 2026-11-24 (America/La_Paz)
 
 ## Done ✅
-- ✅ Operator preview: campaign drafts, imports, sequence editor, contacts, demo inbox, reports.
-- ✅ M1: PR #2 merged into `codex/campaign-operator-preview`.
-- ✅ M1: shared Unipile v2 client; legacy provider adapter removed.
-- ✅ M1: hosted auth uses `/v2/auth/link`; GET callback verifies the fetched account.
-- ✅ M1: Vault credential fallback retained; provider errors redact response text.
-- ✅ M1: 21 tests pass; production build and all three Edge Function checks pass.
-- ✅ M1: source scan finds no legacy Unipile calls in server functions.
-- ✅ Deployed `linkedin-status` returned connected:true on November 24 local time.
+- ✅ M1: Unipile v2 foundation, Vault fallback and legacy adapter removal (PR #3).
+- ✅ M1: deployed LinkedIn health returned connected:true on November 24.
+- ✅ M2: normalized execution tables, workspace RLS and service-only execution RPCs.
+- ✅ M2: planner, fenced queue claims, dry-run worker and optional minute cron script.
+- ✅ M2: database rolling limiter, shared daily caps, sender windows and jitter.
+- ✅ M2: state machine, retries, provider dedupe, reply cancellation and pause controls.
+- ✅ M2: 20-contact simulation: 16 finished, 3 replied, 1 invite expired.
+- ✅ Local: 43 passing Node tests; 2 multi-connection tests reserved for PostgreSQL CI.
+- ✅ Scheduler authentication/kill-switch test, build and five function type checks pass.
 
 ## Open ❌
-- ❌ M1 review: Claude to validate hosted auth callback in a review environment.
-- ❌ M2: normalized tables/RLS, queue, database limiter, dry-run engine and simulations.
-- ❌ M3: live sending behind kill switch and Claude's five-prospect pilot.
-- ❌ M4: webhooks, reconcile, live inbox, reconnect UI and account health controls.
-- ❌ M5: Radar schema inspection/import/write-back, accurate metrics and Resend report.
-- ❌ M6: production deployment through the existing workflow and health checks.
-- ❌ Rotate the Unipile test key in Vault before go-live (Claude).
-- ❌ Verify production login, workspace membership and database policies before rollout.
+- ❌ M2 review and PostgreSQL CI concurrency acceptance.
+- ❌ M3: actual provider dispatch, durable send intent and five-prospect pilot.
+- ❌ M4: webhooks, reconcile, inbox, reconnect and connection browser click-through.
+- ❌ M5: inspect Radar schema; import/write-back, metrics and Resend daily report.
+- ❌ M6: production deployment via existing workflow, login and health verification.
+- ❌ Claude must rotate the Unipile test key in Vault before go-live.
 
-## Known issues
-- Live start/reply remain blocked until the engine milestones are accepted.
-- Hosted auth callback is type-checked; no live account authentication was performed in M1.
-- Existing preview bundle exceeds Vite's 500 kB warning threshold.
-- Historical research/specifications predate the November 24 brief; the brief governs v1.
+## Known issues / decisions
+- Olivier deferred M1's connection click-through to M4 with reconnect.
+- M2 is dry-run only; enabling live mode returns 503. No provider requests occur.
+- Browser Start/Reply stay gated until normalized live integration is commissioned.
+- No production migration, function deployment or cron installation performed in M2.
+- Simulated records/counters must not be promoted into live records.
+- The existing preview bundle still triggers Vite's 500 kB size warning.
+- Full M2 design/evidence: docs/M2-ENGINE.md and docs/validation/M2-SIMULATION.json.
 
 ## Deploy route
-Existing Cloudflare Pages project: `gershon-campaign`, domain: campaign.gershon.ai.
-Use `.github/workflows/deploy.yml` at M6 only. No deployment or migration performed in M1.
-Historical November 23 direct upload is recorded in git history; do not repeat that route.
+Existing Cloudflare Pages project: gershon-campaign, domain: campaign.gershon.ai.
+Use .github/workflows/deploy.yml at M6 only. No direct uploads.

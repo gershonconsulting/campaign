@@ -5,6 +5,7 @@ Simple LinkedIn drip-campaign platform for Gershon Consulting. It takes prospect
 | Document | What it is |
 |---|---|
 | [docs/SENDING-ENGINE-V1.txt](docs/SENDING-ENGINE-V1.txt) | Current build brief and milestone acceptance criteria (November 24, 2026); takes precedence over the older specification |
+| [docs/M2-ENGINE.md](docs/M2-ENGINE.md) | Normalized dry-run engine, safety rules and actual simulation evidence |
 | [docs/SPECIFICATION.md](docs/SPECIFICATION.md) | Full product and technical spec to build the platform |
 | [research/botdog/FEATURE-INVENTORY.md](research/botdog/FEATURE-INVENTORY.md) | Every Botdog page and feature, reviewed live on 2026-11-23 |
 | [research/botdog/HOW-IT-WORKS-WITHOUT-EXTENSION.md](research/botdog/HOW-IT-WORKS-WITHOUT-EXTENSION.md) | How Botdog runs LinkedIn actions from the cloud with no Chrome extension |
