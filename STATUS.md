@@ -1,34 +1,33 @@
 # STATUS — campaign.gershon.ai
-Last updated: 2026-11-23
-
-## State
-Working operator preview and integration foundation on the implementation branch. Not commissioned for live LinkedIn execution. See `docs/IMPLEMENTATION.md` for delivered features, validation, and remaining work.
+Last updated: 2026-11-24 (America/La_Paz)
 
 ## Done ✅
-- ✅ Botdog reviewed page by page (dashboard, campaigns, 5-step wizard, sequence builder, contacts, inbox, all settings, team dashboard, integrations)
-- ✅ 44 screenshots stored, prospect names/messages blurred (repo is public)
-- ✅ "How Botdog works without an extension" research (cloud session via li_at cookie or credentials, proxy per account, most likely built on Unipile)
-- ✅ Full specification v1.0 (docs/SPECIFICATION.md)
+- ✅ Operator preview: campaign drafts, imports, sequence editor, contacts, demo inbox, reports.
+- ✅ M1: PR #2 merged into `codex/campaign-operator-preview`.
+- ✅ M1: shared Unipile v2 client; legacy provider adapter removed.
+- ✅ M1: hosted auth uses `/v2/auth/link`; GET callback verifies the fetched account.
+- ✅ M1: Vault credential fallback retained; provider errors redact response text.
+- ✅ M1: 21 tests pass; production build and all three Edge Function checks pass.
+- ✅ M1: source scan finds no legacy Unipile calls in server functions.
+- ✅ Deployed `linkedin-status` returned connected:true on November 24 local time.
 
 ## Open ❌
-- ✅ Unipile chosen; v2 client in `supabase/functions/_shared/unipile-v2.ts` (tested endpoints: chats, user lookup, invitation, first message)
-- ✅ `linkedin-status` Edge Function deployed to Supabase project `radar` (pkzeeqehwmtnqxdpdesl)
-- ✅ Unipile key stored in radar Vault (`unipile_api_key`), read via service-role-only RPC; `linkedin-status` live → connected:true (2026-11-23)
-- ❌ Rotate the Unipile test key before production (it was pasted in chat)
-- ❌ `linkedin-connect` / `campaign-api` still use Unipile v1 (DSN + hosted auth) — move to v2 once hosted-auth v2 path is confirmed
-- 🟡 Supabase: using Radar's project for functions; campaign migration not yet applied (DB change, needs Olivier's OK)
-- 🟡 M1–M2: frontend workflows, persistence migration and connection endpoints implemented; live database/provider validation pending.
-- ❌ M3: durable executing worker, event ingest and reconciler (pure planner implemented and tested).
-- 🟡 M4: local inbox, dashboard, contacts and exports implemented; live sync, delivery and recurring emails pending.
-- ❌ M5: live acceptance tests and pilot.
-- ❌ Make this repo private (it contains Gershon campaign data in screenshots, even if blurred)
-
-- ✅ Live at https://campaign.gershon.ai (Pages project `gershon-campaign`, direct upload; build zip on branch `deploy/build`). Demo data + live LinkedIn badge = Connected (2026-11-23)
-- ✅ Workspace migration applied to radar (after fixing CASE-inside-IF bug)
-- ❌ Radar Auth: Site URL → https://campaign.gershon.ai + redirect URL; invite olivier@gershonconsulting.com; insert workspace + owner membership; redeploy with VITE_SUPABASE_URL/ANON_KEY (needs Olivier's yes on auth settings)
+- ❌ M1 review: Claude to validate hosted auth callback in a review environment.
+- ❌ M2: normalized tables/RLS, queue, database limiter, dry-run engine and simulations.
+- ❌ M3: live sending behind kill switch and Claude's five-prospect pilot.
+- ❌ M4: webhooks, reconcile, live inbox, reconnect UI and account health controls.
+- ❌ M5: Radar schema inspection/import/write-back, accurate metrics and Resend report.
+- ❌ M6: production deployment through the existing workflow and health checks.
+- ❌ Rotate the Unipile test key in Vault before go-live (Claude).
+- ❌ Verify production login, workspace membership and database policies before rollout.
 
 ## Known issues
-- A test draft "New campaign" (0 contacts, not started) was created in Botdog during the review — can be deleted.
+- Live start/reply remain blocked until the engine milestones are accepted.
+- Hosted auth callback is type-checked; no live account authentication was performed in M1.
+- Existing preview bundle exceeds Vite's 500 kB warning threshold.
+- Historical research/specifications predate the November 24 brief; the brief governs v1.
 
 ## Deploy route
-Now: `pnpm build` → zip `dist/` → push to branch `deploy/build` → Cloudflare dashboard Pages › gershon-campaign › Create deployment › upload. Planned: GitHub Actions deploy.yml once CF secrets exist.
+Existing Cloudflare Pages project: `gershon-campaign`, domain: campaign.gershon.ai.
+Use `.github/workflows/deploy.yml` at M6 only. No deployment or migration performed in M1.
+Historical November 23 direct upload is recorded in git history; do not repeat that route.

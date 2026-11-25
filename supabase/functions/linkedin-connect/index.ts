@@ -1,12 +1,15 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { unipile } from '../_shared/provider.ts';
-// The random, expiring request ID is sent only to Unipile's notify URL. The
+import { getAccount } from '../_shared/unipile-v2.ts';
+// The random, expiring request ID is bound to Unipile's redirect URI. The
 // account is independently fetched from the provider; callback claims are not trusted.
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+  if (req.method !== 'GET') return new Response('Method not allowed', { status: 405 });
   try {
-    const id = new URL(req.url).searchParams.get('request');
-    if (!id) return new Response('Invalid callback', { status: 400 });
+    const params = new URL(req.url).searchParams;
+    const id = params.get('request'),
+      providerId = params.get('account_id');
+    if (!id || !providerId || params.has('error_type'))
+      return new Response('Connection failed. Generate a new connection link.', { status: 400 });
     const db = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -20,16 +23,13 @@ Deno.serve(async (req) => {
       .select()
       .single();
     if (error || !request) return new Response('Expired callback', { status: 403 });
-    const payload = await req.json();
-    if (
-      payload.name !== id ||
-      !payload.account_id ||
-      !['CREATION_SUCCESS', 'RECONNECTED'].includes(payload.status)
-    )
-      return new Response('Invalid callback', { status: 400 });
-    const account = await unipile(`accounts/${encodeURIComponent(payload.account_id)}`);
-    if (account.type !== 'LINKEDIN')
+    const account = await getAccount(providerId);
+    if (account.id !== providerId || account.provider !== 'linkedin')
       return new Response('LinkedIn account required', { status: 400 });
+    if (account.status !== 'running' || account.is_locked !== false)
+      return new Response('LinkedIn account is not connected. Retry authentication.', {
+        status: 409,
+      });
     const { data: workspace, error: wError } = await db
       .from('campaign_workspaces')
       .select('*')
@@ -37,9 +37,18 @@ Deno.serve(async (req) => {
       .single();
     if (wError) throw wError;
     const existing = workspace.data.senders.find(
-      (s: { providerId?: string }) => s.providerId === payload.account_id,
+      (s: { providerId?: string }) => s.providerId === account.id,
     );
-    if (existing) return new Response('Already linked', { status: 200 });
+    const redirect = () =>
+      new Response(null, {
+        status: 303,
+        headers: {
+          Location: `${Deno.env.get('APP_ORIGIN') || 'https://campaign.gershon.ai'}/#senders`,
+          'Cache-Control': 'no-store',
+          'Referrer-Policy': 'no-referrer',
+        },
+      });
+    if (existing) return redirect();
     const name = account.name || 'LinkedIn sender';
     workspace.data.senders.push({
       id: crypto.randomUUID(),
@@ -51,7 +60,7 @@ Deno.serve(async (req) => {
         .slice(0, 2)
         .join(''),
       status: 'Connected',
-      providerId: payload.account_id,
+      providerId: account.id,
       accountType: 'LinkedIn',
       timezone: 'Europe/Paris',
       health: 50,
@@ -69,7 +78,7 @@ Deno.serve(async (req) => {
       .select('id');
     if (uError || !updated?.length)
       throw new Error('Workspace changed. Reconnect the account to retry.');
-    return new Response('Connected', { status: 200 });
+    return redirect();
   } catch {
     return new Response(
       'Connection could not be completed. Generate a new connection link and retry.',
