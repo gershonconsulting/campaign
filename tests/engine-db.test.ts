@@ -149,7 +149,7 @@ test('normalized PostgreSQL execution engine', { timeout: 180_000 }, async (t) =
         $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       grant usage on schema auth to authenticated;
       grant execute on function auth.uid() to authenticated;
-      create table public.campaign_workspaces(id uuid primary key,name text not null);
+      create table public.campaign_workspaces(id uuid primary key,name text not null,data jsonb not null default '{}',revision bigint not null default 0,updated_at timestamptz not null default now());
       create table public.campaign_members(user_id uuid primary key,workspace_id uuid references public.campaign_workspaces(id));
       alter table public.campaign_members enable row level security;
       create policy own_membership on public.campaign_members for select to authenticated using(user_id=auth.uid());
@@ -980,6 +980,105 @@ test('normalized PostgreSQL execution engine', { timeout: 180_000 }, async (t) =
         assert.equal(
           await scalar('select cardinality(requests) v from campaign_engine.api_limiter'),
           8,
+        );
+      },
+    );
+    await t.test(
+      'real list intake has fenced leases, revision checks, fixed CSVs and hourly dynamic refresh',
+      async () => {
+        await db.exec('create table auth.users(id uuid primary key)');
+        await db.exec(
+          await readFile(
+            new URL('../supabase/migrations/202611250001_campaign_lists.sql', import.meta.url),
+            'utf8',
+          ),
+        );
+        const workspace = randomUUID(),
+          user = randomUUID(),
+          csv = randomUUID(),
+          radar = randomUUID();
+        await q('insert into auth.users(id) values($1)', [user]);
+        await q(
+          `insert into public.campaign_workspaces(id,name,data) values($1,'List intake test',$2)`,
+          [
+            workspace,
+            JSON.stringify({
+              campaigns: [{ id: 'real-draft', status: 'Draft' }],
+              people: [],
+              enrollments: [],
+            }),
+          ],
+        );
+        await q(
+          `insert into public.campaign_list_sources(id,workspace_id,campaign_id,created_by,kind,label,config) values($1,$2,'real-draft',$3,'csv','Imported CSV','{}')`,
+          [csv, workspace, user],
+        );
+        await q(
+          `insert into public.campaign_list_sources(id,workspace_id,campaign_id,created_by,kind,label,config,refresh_minutes) values($1,$2,'real-draft',$3,'radar','Radar','{}',60)`,
+          [radar, workspace, user],
+        );
+        const claimSource = (id: string | null) =>
+          scalar('select public.campaign_list_claim($1) v', [id]);
+        const apply = (s: any, revision: number, more: boolean, people: unknown[] = []) =>
+          scalar('select public.campaign_list_apply($1,$2,$3,$4,$5,$6,$7,$8) v', [
+            s.id,
+            s.lease_token,
+            revision,
+            JSON.stringify(people),
+            '[]',
+            people.length,
+            100,
+            more,
+          ]);
+        const c = await claimSource(csv);
+        assert.ok(c.lease_token);
+        assert.equal(await claimSource(csv), null);
+        assert.equal(await apply(c, 0, false), true);
+        assert.equal(await claimSource(csv), null);
+        assert.equal(await apply(c, 1, false), false);
+        const r = await claimSource(radar);
+        assert.equal(await apply(r, 999, true), false);
+        assert.equal(
+          await scalar('select revision::int v from public.campaign_workspaces where id=$1', [
+            workspace,
+          ]),
+          1,
+        );
+        assert.equal(await apply(r, 1, true, [{ id: 'imported-contact', source: 'Radar' }]), true);
+        assert.equal(
+          await scalar('select offset_position v from public.campaign_list_sources where id=$1', [
+            radar,
+          ]),
+          100,
+        );
+        assert.equal(await claimSource(null), null);
+        await q(
+          `update public.campaign_list_sources set next_sync_at=now()-interval '1 minute' where id=$1`,
+          [radar],
+        );
+        const next = await claimSource(null);
+        assert.equal(next.id, radar);
+        assert.equal(await apply(next, 2, false), true);
+        const wait = await scalar(
+          'select extract(epoch from next_sync_at-last_synced_at)::int v from public.campaign_list_sources where id=$1',
+          [radar],
+        );
+        assert.equal(wait, 3600);
+        await assert.rejects(
+          q('update public.campaign_list_sources set refresh_minutes=60 where id=$1', [csv]),
+          /check constraint/,
+        );
+        assert.equal(
+          await scalar(
+            `select has_function_privilege('authenticated','public.campaign_list_claim(uuid)','execute') v`,
+          ),
+          false,
+        );
+        assert.equal(
+          await scalar(
+            `select has_function_privilege('service_role','public.campaign_list_claim(uuid)','execute') v`,
+          ),
+          true,
         );
       },
     );

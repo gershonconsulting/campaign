@@ -19,3 +19,11 @@ verify_jwt = false
 [functions.campaign-worker]
 verify_jwt = false
 # Dedicated scheduler secret verified by the handler; M2 is dry-run only.
+
+[functions.campaign-lists]
+verify_jwt = false
+# Validates user JWT and operator membership itself.
+
+[functions.campaign-list-sync]
+verify_jwt = false
+# Dedicated scheduler secret; read-only source fetches, no provider sends.

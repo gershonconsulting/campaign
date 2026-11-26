@@ -1,0 +1,75 @@
+(node:21432) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ normalizes profile URLs and rejects unrelated destinations (3.8051ms)
+✔ variables resolve fallbacks and report missing values (3.5145ms)
+✔ imports reject duplicates within the same batch and active client campaigns (24.5666ms)
+✔ blacklist rules are scoped to the relevant client (2.0882ms)
+✔ start validation catches missing sender, prospect and variable data (4.4817ms)
+✔ working hours respect timezone, weekends and daylight saving (52.3985ms)
+✔ reply, blacklist, kill switch and disconnection prevent sending (8.2585ms)
+✔ quotas apply across campaigns on the same sender (5.9511ms)
+✔ planner paces sends, claims only one per sender and advances after success (16.9257ms)
+✔ message conditions require a new thread when requested (2.6415ms)
+(node:35336) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ normalized PostgreSQL execution engine
+  ✔ migration installs every normalized table with RLS and service-only RPCs (15.5006ms)
+  ✔ working window handles exact minutes, weekends, local dates and DST (197.3959ms)
+  ✔ database rolling limiter allows eight requests, then waits until the oldest expires (27.1086ms)
+  ✔ first-degree contacts skip invitation; visits and lookup do not count as sends (119.3977ms)
+  ✔ invitation acceptance schedules delayed messages; reply cancels work and is idempotent (260.7562ms)
+  ✔ acceptance timeout expires without withdrawing an invitation (137.3059ms)
+  ✔ idempotency, stale claims and fencing prevent duplicate progress or counters (53.9583ms)
+  ✔ per-sender caps are shared by campaigns and reset at sender-local midnight (136.0279ms)
+  ✔ message quotas are shared across campaigns on one sender (155.9792ms)
+  ✔ completion rechecks a cap lowered after claim (106.8408ms)
+  ✔ completion counts against the sender-local date when a lease crosses midnight (161.3507ms)
+  ✔ spacing is reserved atomically and delays all sends from the same sender (119.7656ms)
+  ✔ 429 preserves attempt budget; 5xx retries after 1, 5, 15 minutes then stops (74.7778ms)
+  ✔ 403 restriction returns to invite path and safely retries the same message after acceptance (201.8764ms)
+  ✔ reply racing a claimed action invalidates the claim before completion (82.9803ms)
+  ✔ duplicates across completed campaigns retain provider ownership (52.5344ms)
+  ✔ started steps are locked and cross-workspace foreign keys reject mixing (83.1051ms)
+  ✔ contact pause/resume/remove and sender health prevent queued or claimed progress (118.4485ms)
+  ✔ RLS exposes only the current workspace and browser roles cannot mutate execution (37.3591ms)
+  ✔ templates validate real values, fallbacks, unknown variables and line breaks (46.5993ms)
+  ✔ waiting invitees do not starve other contacts in a bounded planner batch (48.8038ms)
+  ✔ 20 fake contacts progress over simulated days with redacted dry-run logs (3923.7991ms)
+  ﹣ overlapping workers use SKIP LOCKED without double-claiming (0.6215ms) # SKIP
+  ﹣ concurrent claims for one sender and global token reservations remain serialized (0.0616ms) # SKIP
+  ✔ real list intake has fenced leases, revision checks, fixed CSVs and hourly dynamic refresh (50.3794ms)
+✔ normalized PostgreSQL execution engine (10106.8186ms)
+ℹ Simulation: 20 contacts; 20 lookups; 20 visits; 12 invites; 51 messages; 16 finished; 3 replied; 1 invite_expired. No provider calls.
+(node:33152) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ new workspaces have no invented prospects, campaigns, senders, messages or activity (2.0357ms)
+✔ the former browser seed is removed without mutating its recovery copy (29.5552ms)
+✔ legacy imports and user-authored drafts survive cleanup without fictional delivery progress (3.5395ms)
+✔ CSV keeps only mapped real fields and cannot inject IDs or execution facts (2.4047ms)
+✔ Sales Navigator accepts search and saved lead lists but rejects account lists and lookalike hosts (1.32ms)
+✔ Radar configuration ignores browser-supplied ownership and maps actual lead IDs (0.5272ms)
+✔ Sales Navigator data does not invent a name, company or title (0.3599ms)
+✔ repeated dynamic matches are deduplicated across completed campaigns and clients (3.7278ms)
+(node:2216) ExperimentalWarning: Transform Types is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ v2 provider contract with a fake server
+  ✔ hosted auth uses the platform route and v2 field names (106.4796ms)
+  ✔ account verification is not account-prefixed (1.7343ms)
+  ✔ rejects malformed account IDs before fetching (0.8788ms)
+  ✔ non-ASCII public identifiers are URL encoded (1.3695ms)
+  ✔ invites enforce 300 characters and preserve line breaks (1.3463ms)
+  ✔ first messages use users_ids array; replies use chat route (5.6898ms)
+  ✔ chat pagination uses data, next_cursor and a maximum of 25 (6.6447ms)
+  ✔ 429 exposes retry delay and retryable classification (3.961ms)
+  ✔ 429 reads provider retry text without a Retry-After header (7.6486ms)
+  ✔ 403 access restriction is permanent; 5xx is retryable; errors redact provider text (5.7703ms)
+  ✔ hosted auth rejects non-HTTPS links (1.4965ms)
+✔ v2 provider contract with a fake server (151.2537ms)
+ℹ tests 56
+ℹ suites 0
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 10701.4876

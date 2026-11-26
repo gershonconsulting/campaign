@@ -7,7 +7,7 @@ import {
   validateCampaign,
   templateSteps,
 } from '../src/model.ts';
-import { demoData } from '../src/demo.ts';
+import { demoData } from './fixtures/workspace.ts';
 import {
   isWorking,
   plan,
