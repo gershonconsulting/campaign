@@ -24,9 +24,9 @@ jobs:
         with:
           deno-version: v2.x
       - name: Check server functions (no live provider calls)
-        run: deno check supabase/functions/campaign-api/index.ts supabase/functions/linkedin-connect/index.ts supabase/functions/linkedin-status/index.ts supabase/functions/campaign-planner/index.ts supabase/functions/campaign-worker/index.ts
+        run: deno check supabase/functions/campaign-api/index.ts supabase/functions/linkedin-connect/index.ts supabase/functions/linkedin-status/index.ts supabase/functions/campaign-planner/index.ts supabase/functions/campaign-worker/index.ts supabase/functions/campaign-lists/index.ts supabase/functions/campaign-list-sync/index.ts
       - name: Test scheduler authentication and dry-run guard (mock HTTP only)
-        run: deno test --allow-env supabase/functions/_tests/engine_test.ts
+        run: deno test --allow-env supabase/functions/_tests/
       - name: Reject legacy provider adapter
         run: |
           if grep -REn 'api/v1|UNIPILE_DSN|hosted/accounts/link|_shared/provider' supabase/functions; then

@@ -63,7 +63,6 @@ Deno.serve(async (req) => {
       providerId: account.id,
       accountType: 'LinkedIn',
       timezone: 'Europe/Paris',
-      health: 50,
       limits: { invite: 10, visit: 30, message: 25, inmail: 7, company: 15, react: 10 },
     });
     const { data: updated, error: uError } = await db

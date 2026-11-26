@@ -1,34 +1,34 @@
 # STATUS — campaign.gershon.ai
-Last updated: 2026-11-24 (America/La_Paz)
+Last updated: 2026-11-26 (America/La_Paz)
 
 ## Done ✅
-- ✅ M1: Unipile v2 foundation, Vault fallback and legacy adapter removal (PR #3).
-- ✅ M1: deployed LinkedIn health returned connected:true on November 24.
-- ✅ M2: normalized execution tables, workspace RLS and service-only execution RPCs.
-- ✅ M2: planner, fenced queue claims, dry-run worker and optional minute cron script.
-- ✅ M2: database rolling limiter, shared daily caps, sender windows and jitter.
-- ✅ M2: state machine, retries, provider dedupe, reply cancellation and pause controls.
-- ✅ M2: 20-contact simulation: 16 finished, 3 replied, 1 invite expired.
-- ✅ Local: 45 passing Node tests; 2 multi-connection tests reserved for PostgreSQL CI.
-- ✅ Scheduler authentication/kill-switch test, build and five function type checks pass.
+- ✅ M1 and M2 merged: v2 connection foundation and normalized dry-run engine.
+- ✅ App no longer seeds fictional campaigns, contacts, sender cards, inbox or activity.
+- ✅ Real local imports/drafts survive cleanup; simulated delivery history is removed.
+- ✅ No simulated local Start/Reply success or invented sender health scores.
+- ✅ Three list types: own Radar (dynamic), CSV (static), Sales Navigator URL (dynamic).
+- ✅ Dynamic draft lists refresh hourly and append new matches without duplicates.
+- ✅ CSV mapping controls/cards: red when unmapped, green when mapped; text labels too.
+- ✅ Intake: ownership checks, shared provider limiter, source leases and revision checks.
+- ✅ Local: 54 Node tests passed; 2 multi-connection tests run separately in PostgreSQL CI.
+- ✅ Two mocked server tests pass; production build passes.
 
 ## Open ❌
-- ❌ M2 review and acceptance by Claude (PR #4).
-- ❌ M3: actual provider dispatch, durable send intent and five-prospect pilot.
-- ❌ M4: webhooks, reconcile, inbox, reconnect and connection browser click-through.
-- ❌ M5: inspect Radar schema; import/write-back, metrics and Resend daily report.
-- ❌ M6: production deployment via existing workflow, login and health verification.
-- ❌ Claude must rotate the Unipile test key in Vault before go-live.
+- ❌ Review and deploy real-list preparation changes; confirm Radar email ownership mapping.
+- ❌ Browser verification of mapping colours (file chooser session expired).
+- ❌ M3: real provider dispatch, normalized live intake, send intent and five-prospect pilot.
+- ❌ M4: webhooks, reconcile, inbox, reconnect and connection click-through.
+- ❌ M5: running-campaign source integration/write-back, metrics and daily report.
+- ❌ M6: production deployment via workflow, login/membership and health verification.
+- ❌ Rotate the Unipile test key in Vault before go-live (Claude).
 
-## Known issues / decisions
-- Olivier deferred M1's connection click-through to M4 with reconnect.
-- M2 is dry-run only; enabling live mode returns 503. No provider requests occur.
-- Browser Start/Reply stay gated until normalized live integration is commissioned.
-- No production migration, function deployment or cron installation performed in M2.
-- Simulated records/counters must not be promoted into live records.
-- The existing preview bundle still triggers Vite's 500 kB size warning.
-- Full M2 design/evidence: docs/M2-ENGINE.md and docs/validation/M2-SIMULATION.json.
+## Decisions / limits
+- Confirmed by Olivier: own Radar account; hourly refresh adds new matching prospects.
+- List intake currently accepts drafts only; real data never enters the simulation engine.
+- No production migration, deployment, provider request, invitation or message in this change.
+- Browser Start/Reply stay gated pending live-engine acceptance.
+- Details: docs/REAL-CAMPAIGN-LISTS.md. Existing bundle size warning remains.
 
 ## Deploy route
-Existing Cloudflare Pages project: gershon-campaign, domain: campaign.gershon.ai.
-Use .github/workflows/deploy.yml at M6 only. No direct uploads.
+Cloudflare Pages project: gershon-campaign; domain: campaign.gershon.ai.
+Use .github/workflows/deploy.yml at M6 only. No direct uploads or setup commands for Olivier.
