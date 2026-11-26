@@ -1,3 +1,4 @@
+import type { ProspectList } from '../supabase/functions/_shared/prospect-lists.ts';
 export type Status = 'Draft' | 'Running' | 'Paused' | 'Completed' | 'Archived';
 export type StepType =
   'visit' | 'invite' | 'acceptance' | 'wait' | 'message' | 'inmail' | 'company' | 'react' | 'end';
@@ -30,6 +31,7 @@ export type Campaign = {
   workEnd: number;
   workDays: number[];
   autoFeed: boolean;
+  prospectLists?: ProspectList[];
 };
 export type Person = {
   id: string;
@@ -46,6 +48,7 @@ export type Person = {
   language: string;
   connected: boolean;
   source: string;
+  radarProspectId?: string;
 };
 export type Enrollment = {
   id: string;
@@ -65,7 +68,7 @@ export type Sender = {
   accountType: string;
   timezone: string;
   limits: Record<string, number>;
-  health: number;
+  health?: number;
   providerId?: string;
 };
 export type Conversation = {
@@ -121,9 +124,9 @@ export const safeLimits: Record<string, number> = {
   react: 20,
 };
 export const maxLimits: Record<string, number> = {
-  invite: 40,
+  invite: 25,
   visit: 150,
-  message: 120,
+  message: 80,
   inmail: 30,
   company: 100,
   react: 40,
@@ -224,19 +227,11 @@ export function importPeople(data: Data, campaign: Campaign, rows: Partial<Perso
       blocked++;
       continue;
     }
-    let person = people.find((p) => p.linkedinUrl === url);
+    let person = people.find((p) => normalizeUrl(p.linkedinUrl) === url);
     if (
       person &&
       enrollments.some(
-        (e) =>
-          e.personId === person!.id &&
-          (e.campaignId === campaign.id ||
-            data.campaigns.some(
-              (c) =>
-                c.id === e.campaignId &&
-                c.clientId === campaign.clientId &&
-                ['Running', 'Paused', 'Draft'].includes(c.status),
-            )),
+        (e) => e.personId === person!.id && data.campaigns.some((c) => c.id === e.campaignId),
       )
     ) {
       duplicate++;
@@ -344,28 +339,4 @@ export function metrics(d: Data, campaignId?: string, days = 30, clientId = '') 
       (c) => ids.has(c.campaignId) && c.tags.includes('Interested'),
     ).length,
   };
-}
-export function exportCsv(filename: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
-  const escape = (v: unknown) =>
-    `"${String(v ?? '')
-      .replace(/^[=+@\-\t\r]/, "'$&")
-      .replaceAll('"', '""')}"`;
-  const blob = new Blob(
-    [
-      '\uFEFF' +
-        [
-          keys.map(escape).join(','),
-          ...rows.map((row) => keys.map((k) => escape(row[k])).join(',')),
-        ].join('\r\n'),
-    ],
-    { type: 'text/csv;charset=utf-8' },
-  );
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

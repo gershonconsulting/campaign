@@ -1,4 +1,4 @@
-import { type Data, templateSteps, safeLimits } from './model.ts';
+import { type Data, templateSteps, safeLimits } from '../../src/model.ts';
 const ago = (days: number, h = 10) => {
   const d = new Date();
   d.setDate(d.getDate() - days);

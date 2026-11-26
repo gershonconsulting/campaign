@@ -43,12 +43,12 @@ import {
   type Campaign,
   type Sender,
   type Person,
+  type Client,
   uid,
   metrics,
   templateSteps,
   validateCampaign,
   stepLabels,
-  exportCsv,
   safeLimits,
   maxLimits,
   renderVariables,
@@ -56,7 +56,7 @@ import {
 import {
   loadData,
   saveData,
-  isDemo,
+  isLocal,
   supabase,
   providerAction,
   linkedinStatus,
@@ -65,6 +65,8 @@ import {
 import { Button, Badge, Avatar, Field, Select, SearchBox, Empty, Modal, Panel } from './ui';
 import Sequence from './Sequence';
 import ImportDialog from './ImportDialog';
+import ProspectLists from './ProspectLists';
+import { exportCsv } from './export';
 type Change = (fn: (d: Data) => Data) => void;
 const date = (v: string) =>
   v ? new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
@@ -197,7 +199,11 @@ export default function App() {
         notify(errors[0]);
         return;
       }
-      if (!isDemo) {
+      if (isLocal) {
+        notify('Sign in to the connected workspace before starting a campaign.');
+        return;
+      }
+      {
         try {
           await pending.current;
           await providerAction('start-campaign', { campaignId: c.id });
@@ -216,13 +222,9 @@ export default function App() {
     updateCampaign({
       ...c,
       status,
-      startedAt: status === 'Running' ? c.startedAt || new Date().toISOString() : c.startedAt,
+      startedAt: c.startedAt,
     });
-    notify(
-      isDemo
-        ? `Demo campaign ${status.toLowerCase()}. No LinkedIn actions will be sent.`
-        : `Campaign ${status.toLowerCase()}.`,
-    );
+    notify(`Campaign ${status.toLowerCase()}.`);
   }
   function duplicate(c: Campaign) {
     const clone = {
@@ -293,7 +295,7 @@ export default function App() {
         <div className="sidebar-foot">
           <Avatar name="Gershon Consulting" small />
           <span>
-            Gershon Consulting<small>{isDemo ? 'Demo workspace' : 'Connected workspace'}</small>
+            Gershon Consulting<small>{isLocal ? 'Local drafts' : 'Connected workspace'}</small>
           </span>
           {supabase && (
             <button className="icon-btn" title="Sign out" onClick={() => supabase!.auth.signOut()}>
@@ -327,10 +329,10 @@ export default function App() {
           </div>
           <div className="row top-actions">
             <span className="save-state">
-              {saving ? 'Saving…' : isDemo ? 'Saved locally' : 'Synced'}
+              {saving ? 'Saving…' : isLocal ? 'Saved locally' : 'Synced'}
             </span>
-            <Badge tone={isDemo ? 'demo' : 'connected'}>
-              {isDemo ? 'Demo mode' : 'Live workspace'}
+            <Badge tone={isLocal ? 'demo' : 'connected'}>
+              {isLocal ? 'Local drafts' : 'Connected workspace'}
             </Badge>
             <button
               className="icon-btn notification-btn"
@@ -343,11 +345,10 @@ export default function App() {
             <Avatar name="Gershon Consulting" small />
           </div>
         </header>
-        {isDemo && (
+        {isLocal && (
           <div className="demo-banner">
             <span>
-              <strong>Demo workspace</strong> · Sample data, saved in this browser. Nothing is sent
-              to LinkedIn.
+              <strong>Local drafts</strong> · Your drafts stay in this browser until you sign in.
             </span>
             <button onClick={() => navigate('settings')}>
               Connection setup <ChevronRight size={14} />
@@ -373,6 +374,14 @@ export default function App() {
               onImport={() => setImportId(selected.id)}
               onLifecycle={(status) => lifecycle(selected, status)}
               onDuplicate={() => duplicate(selected)}
+              beforeRequest={() => pending.current}
+              onReload={async () => {
+                await pending.current;
+                const fresh = await loadData();
+                revision.current = fresh.revision;
+                latest.current = fresh.data;
+                setData(fresh.data);
+              }}
             />
           ) : page === 'overview' ? (
             <Overview {...contentProps} onCreate={() => setCreate(true)} />
@@ -424,8 +433,12 @@ export default function App() {
         <CreateCampaign
           data={data}
           onClose={() => setCreate(false)}
-          onCreate={(c) => {
-            change((d) => ({ ...d, campaigns: [...d.campaigns, c] }));
+          onCreate={(c, client) => {
+            change((d) => ({
+              ...d,
+              clients: client ? [...d.clients, client] : d.clients,
+              campaigns: [...d.campaigns, c],
+            }));
             setCreate(false);
             navigate(`campaigns/${c.id}`);
             setImportId(c.id);
@@ -437,8 +450,27 @@ export default function App() {
           data={data}
           campaign={data.campaigns.find((c) => c.id === importId)!}
           onClose={() => setImportId('')}
-          onImport={(people, enrollments) => {
-            change((d) => ({ ...d, people, enrollments }));
+          beforeRequest={() => pending.current}
+          onSaved={async () => {
+            await pending.current;
+            const fresh = await loadData();
+            revision.current = fresh.revision;
+            latest.current = fresh.data;
+            setData(fresh.data);
+            setImportId('');
+            notify('Prospect list saved.');
+          }}
+          onImport={(people, enrollments, source) => {
+            change((d) => ({
+              ...d,
+              people,
+              enrollments,
+              campaigns: d.campaigns.map((c) =>
+                c.id === importId
+                  ? { ...c, prospectLists: [...(c.prospectLists || []), source] }
+                  : c,
+              ),
+            }));
             setImportId('');
             notify('Prospects added to the campaign.');
           }}
@@ -658,7 +690,7 @@ function Funnel({
           <div className="funnel-track">
             <i
               style={{
-                width: `${Math.max(2, (Number(value) / Math.max(m.invited, 1)) * 100)}%`,
+                width: `${(Number(value) / Math.max(m.invited, 1)) * 100}%`,
                 opacity: 1 - i * 0.18,
               }}
             />
@@ -717,7 +749,7 @@ function Overview({ data, navigate, onCreate }: Props & { onCreate: () => void }
         >
           <ActivityChart data={data} days={Number(days)} />
         </Panel>
-        <Panel title="Account health" action={<ShieldCheck size={19} color="#15803d" />}>
+        <Panel title="LinkedIn senders" action={<ShieldCheck size={19} color="#15803d" />}>
           {data.senders.map((s) => (
             <div className="health-card" key={s.id}>
               <div className="row">
@@ -727,16 +759,6 @@ function Overview({ data, navigate, onCreate }: Props & { onCreate: () => void }
                   <small>{s.accountType}</small>
                 </div>
                 <Badge tone={s.status === 'Connected' ? 'connected' : 'paused'}>{s.status}</Badge>
-              </div>
-              <div className="health-score">
-                <strong>
-                  {s.health}
-                  <small>/100</small>
-                </strong>
-                <span>{s.health >= 80 ? 'Healthy account' : 'Needs attention'}</span>
-              </div>
-              <div className="health-track">
-                <i style={{ width: `${s.health}%` }} />
               </div>
               <p>
                 {s.status === 'Connected'
@@ -788,10 +810,7 @@ function Overview({ data, navigate, onCreate }: Props & { onCreate: () => void }
         <Panel title="Conversion funnel">
           <Funnel data={data} days={Number(days)} />
         </Panel>
-        <Panel
-          title="Recent activity"
-          action={<Badge>{isDemo ? 'Sample activity' : 'Live activity'}</Badge>}
-        >
+        <Panel title="Recent activity" action={<Badge>Campaign activity</Badge>}>
           <ActivityList
             data={data}
             items={data.activities
@@ -1106,37 +1125,50 @@ function CreateCampaign({
 }: {
   data: Data;
   onClose: () => void;
-  onCreate: (c: Campaign) => void;
+  onCreate: (c: Campaign, client?: Client) => void;
 }) {
+  const [newClientId] = useState(uid),
+    [clientName, setClientName] = useState('Gershon Consulting');
   const [name, setName] = useState(''),
-    [client, setClient] = useState(data.clients[0]?.id || ''),
-    [sender, setSender] = useState(data.senders[0]?.id || ''),
+    [client, setClient] = useState(data.clients[0]?.id || newClientId),
+    [sender, setSender] = useState(
+      data.senders.find((s) => s.clientId === data.clients[0]?.id)?.id || '',
+    ),
     [template, setTemplate] = useState('Invite + 2 follow-ups');
   return (
     <Modal title="Create a campaign" onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onCreate({
-            id: uid(),
-            name: name.trim(),
-            clientId: client,
-            senderId: sender,
-            status: 'Draft',
-            steps: structuredClone(
-              data.templates.find((t) => t.id === template)?.steps || templateSteps(template),
-            ).map((s) => ({ ...s, id: uid() })),
-            priority: false,
-            createdAt: new Date().toISOString(),
-            startAt: '',
-            endAt: '',
-            dailyCap: 20,
-            timezone: data.senders.find((s) => s.id === sender)?.timezone || 'Europe/Paris',
-            workStart: 9,
-            workEnd: 18,
-            workDays: [1, 2, 3, 4, 5],
-            autoFeed: false,
-          });
+          onCreate(
+            {
+              id: uid(),
+              name: name.trim(),
+              clientId: client,
+              senderId: sender,
+              status: 'Draft',
+              steps: structuredClone(
+                data.templates.find((t) => t.id === template)?.steps || templateSteps(template),
+              ).map((s) => ({ ...s, id: uid() })),
+              priority: false,
+              createdAt: new Date().toISOString(),
+              startAt: '',
+              endAt: '',
+              dailyCap: 20,
+              timezone: data.senders.find((s) => s.id === sender)?.timezone || 'Europe/Paris',
+              workStart: 9,
+              workEnd: 18,
+              workDays: [1, 2, 3, 4, 5],
+              autoFeed: false,
+            },
+            data.clients.length
+              ? undefined
+              : {
+                  id: newClientId,
+                  name: clientName.trim(),
+                  key: clientName.trim().slice(0, 2).toUpperCase(),
+                },
+          );
         }}
       >
         <div className="modal-body">
@@ -1159,14 +1191,23 @@ function CreateCampaign({
           </Field>
           <div className="form-grid">
             <Field label="Client">
-              <Select
-                value={client}
-                onChange={(v) => {
-                  setClient(v);
-                  setSender(data.senders.find((s) => s.clientId === v)?.id || '');
-                }}
-                options={data.clients.map((c) => ({ value: c.id, label: c.name }))}
-              />
+              {!data.clients.length ? (
+                <input
+                  required
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  aria-label="Client name"
+                />
+              ) : (
+                <Select
+                  value={client}
+                  onChange={(v) => {
+                    setClient(v);
+                    setSender(data.senders.find((s) => s.clientId === v)?.id || '');
+                  }}
+                  options={data.clients.map((c) => ({ value: c.id, label: c.name }))}
+                />
+              )}
             </Field>
             <Field label="LinkedIn sender">
               <Select
@@ -1204,7 +1245,11 @@ function CreateCampaign({
         </div>
         <div className="modal-foot">
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" primary disabled={!name.trim() || !client}>
+          <Button
+            type="submit"
+            primary
+            disabled={!name.trim() || !client || (!data.clients.length && !clientName.trim())}
+          >
             Create draft
           </Button>
         </div>
@@ -1222,12 +1267,16 @@ function CampaignDetail({
   change,
   notify,
   navigate,
+  beforeRequest,
+  onReload,
 }: Props & {
   campaign: Campaign;
   onUpdate: (c: Campaign) => void;
   onImport: () => void;
   onLifecycle: (s: Campaign['status']) => void;
   onDuplicate: () => void;
+  beforeRequest: () => Promise<unknown>;
+  onReload: () => Promise<void>;
 }) {
   const [tab, setTab] = useState('Sequence'),
     [template, setTemplate] = useState(false),
@@ -1293,6 +1342,9 @@ function CampaignDetail({
         <button className={tab === 'Sequence' ? 'active' : ''} onClick={() => setTab('Sequence')}>
           Sequence
         </button>
+        <button className={tab === 'Lists' ? 'active' : ''} onClick={() => setTab('Lists')}>
+          Prospect lists
+        </button>
         <button className={tab === 'Activity' ? 'active' : ''} onClick={() => setTab('Activity')}>
           Activity log
         </button>
@@ -1315,6 +1367,14 @@ function CampaignDetail({
           change={change}
           notify={notify}
           navigate={navigate}
+        />
+      )}
+      {tab === 'Lists' && (
+        <ProspectLists
+          campaign={campaign}
+          beforeRequest={beforeRequest}
+          onReload={onReload}
+          onAdd={onImport}
         />
       )}
       {tab === 'Overview' && (
@@ -1765,9 +1825,7 @@ function Contacts({ data, change, notify, navigate, campaignId }: Props & { camp
             description="Add prospects from Radar, upload a CSV, or adjust your filters."
           />
         )}
-        <div className="table-bottom">
-          {list.length} prospects {isDemo && '· Sample data'}
-        </div>
+        <div className="table-bottom">{list.length} prospects</div>
       </Panel>
     </>
   );
@@ -1799,19 +1857,8 @@ function InboxView({ data, change, notify }: Props) {
     if (!c || !reply.trim()) return;
     setBusy(true);
     try {
-      if (!isDemo) {
-        await providerAction('reply', { conversationId: c.id, body: reply });
-        notify('Message sent.');
-      } else {
-        update({
-          messages: [
-            ...c.messages,
-            { id: uid(), direction: 'out', body: reply, at: new Date().toISOString() },
-          ],
-          unread: false,
-        });
-        notify('Demo reply saved locally. Nothing was sent to LinkedIn.');
-      }
+      await providerAction('reply', { conversationId: c.id, body: reply });
+      notify('Message sent.');
       setReply('');
     } catch (e) {
       notify((e as Error).message);
@@ -1949,7 +1996,7 @@ function InboxView({ data, change, notify }: Props) {
                   />
                   <Button primary type="submit" disabled={!reply.trim() || busy}>
                     <Send size={15} />
-                    {busy ? 'Sending…' : isDemo ? 'Save demo reply' : 'Send reply'}
+                    {busy ? 'Sending…' : 'Send reply'}
                   </Button>
                 </div>
               </form>
@@ -2083,12 +2130,11 @@ function Senders({ data, change, notify }: Props) {
               : 'Live LinkedIn connection (Unipile): Not connected. Campaigns will not send until it is restored.'}
         </div>
       )}
-      {isDemo && (
-        <div className="notice">
-          <AlertCircle size={18} />
-          The account cards below are sample data. Real senders appear here once the workspace is
-          linked.
-        </div>
+      {!data.senders.length && (
+        <Empty
+          title="No sender assigned"
+          description="Connect your LinkedIn account to assign a sender to your campaign."
+        />
       )}
       <div className="sender-grid">
         {data.senders.map((s) => (
@@ -2102,14 +2148,6 @@ function Senders({ data, change, notify }: Props) {
                 </span>
               </div>
               <Badge>{s.status}</Badge>
-            </div>
-            <div className="sender-health">
-              <ShieldCheck size={20} />
-              <span>Account health</span>
-              <strong>{s.health}/100</strong>
-            </div>
-            <div className="health-track">
-              <i style={{ width: `${s.health}%` }} />
             </div>
             <div className="sender-limits">
               {Object.entries(s.limits).map(([key, value]) => (
@@ -2396,8 +2434,8 @@ function SettingsView({ data, change, notify }: Props) {
             <h3>About this workspace</h3>
             <p className="muted">Campaign v0.1 · No AI features</p>
             <p className="muted">
-              {isDemo
-                ? 'Demo data is stored in this browser.'
+              {isLocal
+                ? 'Your drafts are stored in this browser.'
                 : 'Data is stored in the configured Supabase project.'}
             </p>
           </Panel>
@@ -2573,7 +2611,7 @@ function SettingsView({ data, change, notify }: Props) {
             {[
               [
                 'Supabase',
-                isDemo ? 'Not configured' : 'Configured',
+                isLocal ? 'Not configured' : 'Configured',
                 'Authentication and campaign data',
               ],
               [

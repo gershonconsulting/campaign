@@ -1,32 +1,45 @@
 import { useState } from 'react';
 import Papa from 'papaparse';
 import { Radio, Upload, Link2, Check, Download } from 'lucide-react';
-import { type Campaign, type Data, type Person, importPeople, exportCsv } from './model';
-import { Modal, Button, Field, Select, Badge } from './ui';
-import { isDemo, providerAction } from './store';
+import { type Campaign, type Data, type Person, importPeople, uid } from './model';
+import { exportCsv } from './export';
+import { Modal, Button, Field, Select } from './ui';
+import { isLocal, listAction } from './store';
+import {
+  csvRows,
+  listConfig,
+  type ListKind,
+  type ProspectList,
+} from '../supabase/functions/_shared/prospect-lists';
+
 export default function ImportDialog({
   campaign,
   data,
   onClose,
   onImport,
+  onSaved,
+  beforeRequest,
 }: {
   campaign: Campaign;
   data: Data;
   onClose: () => void;
-  onImport: (people: Person[], enrollments: Data['enrollments']) => void;
+  onImport: (people: Person[], enrollments: Data['enrollments'], source: ProspectList) => void;
+  onSaved: () => Promise<void>;
+  beforeRequest: () => Promise<unknown>;
 }) {
-  const [source, setSource] = useState('radar'),
+  const [source, setSource] = useState<ListKind>('radar'),
     [rows, setRows] = useState<Partial<Person>[]>([]),
-    [urls, setUrls] = useState(''),
+    [url, setUrl] = useState(''),
     [grade, setGrade] = useState(''),
-    [owner, setOwner] = useState(''),
     [country, setCountry] = useState(''),
-    [score, setScore] = useState(0),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false),
+    [fileName, setFileName] = useState(''),
     [headers, setHeaders] = useState<string[]>([]),
     [raw, setRaw] = useState<Record<string, string>[]>([]),
-    [mapping, setMapping] = useState<Record<string, string>>({});
+    [mapping, setMapping] = useState<Record<string, string>>({}),
+    [requestId, setRequestId] = useState(uid),
+    [more, setMore] = useState(false);
   const fields = [
     'linkedinUrl',
     'firstName',
@@ -47,38 +60,75 @@ export default function ImportDialog({
     city: 'City',
     language: 'Language',
   };
+  const config =
+    source === 'radar' ? { grade, country } : source === 'csv' ? { fileName } : { url };
   const effective: Partial<Person>[] =
-    source === 'urls'
-      ? urls
-          .split(/\r?\n/)
-          .filter((x) => x.trim())
-          .map((linkedinUrl) => ({ linkedinUrl, source: 'Profile URLs' }))
-      : source === 'csv'
-        ? raw.map(
-            (row) =>
-              Object.fromEntries(fields.map((k) => [k, row[mapping[k]] || ''])) as Partial<Person>,
-          )
-        : rows.filter(
-            (p) =>
-              (!grade || p.grade === grade) &&
-              (!owner || (p.owner || '').toLowerCase().includes(owner.toLowerCase())) &&
-              (!country || (p.country || '').toLowerCase().includes(country.toLowerCase())) &&
-              (p.score || 0) >= score,
-          );
+    source === 'csv'
+      ? csvRows(
+          raw.map((row) => Object.fromEntries(fields.map((key) => [key, row[mapping[key]] || '']))),
+        )
+      : rows;
   const result = importPeople(data, campaign, effective);
-  async function fetchRadar() {
+  function resetPreview() {
+    setRows([]);
+    setMessage('');
+    setMore(false);
+    setRequestId(uid());
+  }
+  async function preview() {
     setBusy(true);
+    setMessage('');
+    setRows([]);
     try {
-      if (isDemo) {
-        setRows(data.people.map((p) => ({ ...p, source: 'Sample Radar data' })));
-        setMessage(
-          'Sample Radar prospects loaded. A live connection is required for your real prospects.',
-        );
-      } else {
-        const response = await providerAction('radar-prospects', { clientId: campaign.clientId });
-        setRows(response.prospects);
-        setMessage('Radar prospects loaded.');
+      const validated = listConfig(source, config);
+      await beforeRequest();
+      const response = await listAction('preview', {
+        campaignId: campaign.id,
+        kind: source,
+        config: validated,
+      });
+      setRows(response.prospects);
+      setMore(response.more);
+      setMessage(
+        response.prospects.length
+          ? `Preview loaded${response.more ? ' — more prospects will be imported in the background' : ''}.`
+          : 'No prospects match this source. You can still save a dynamic list for future matches.',
+      );
+    } catch (e) {
+      setMessage((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function save() {
+    setBusy(true);
+    setMessage('');
+    try {
+      const validated = listConfig(source, config);
+      if (isLocal) {
+        if (source !== 'csv') throw new Error('Sign in to connect a dynamic prospect list.');
+        onImport(result.people, result.enrollments, {
+          id: requestId,
+          kind: 'csv',
+          label: fileName,
+          config: validated,
+          refresh_minutes: 0,
+          last_synced_at: new Date().toISOString(),
+          next_sync_at: null,
+          last_error: null,
+          added_count: result.added,
+        });
+        return;
       }
+      await beforeRequest();
+      await listAction('save', {
+        campaignId: campaign.id,
+        kind: source,
+        config: validated,
+        requestId,
+        ...(source === 'csv' ? { rows: effective } : {}),
+      });
+      await onSaved();
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -86,81 +136,108 @@ export default function ImportDialog({
     }
   }
   return (
-    <Modal title="Add prospects" onClose={onClose} wide>
+    <Modal title="Add a prospect list" onClose={onClose} wide>
       <div className="modal-body">
         <p className="muted">
-          Choose who should enter <strong>{campaign.name}</strong>. Duplicates and blacklisted
-          profiles are skipped.
+          Choose the list for <strong>{campaign.name}</strong>. Previously enrolled profiles and
+          blacklisted prospects are skipped.
         </p>
         <div className="source-grid">
-          {[
-            ['radar', 'From Radar', Radio],
-            ['csv', 'Upload CSV', Upload],
-            ['urls', 'Profile URLs', Link2],
-          ].map(([key, label, Icon]) => {
-            const I = Icon as typeof Radio;
-            return (
-              <button
-                key={key as string}
-                className={`source-option ${source === key ? 'selected' : ''}`}
-                onClick={() => {
-                  setSource(key as string);
-                  setMessage('');
-                }}
-              >
-                <I size={22} />
-                <strong>{label as string}</strong>
-                <small>
-                  {key === 'radar'
-                    ? 'Your graded prospects'
-                    : key === 'csv'
-                      ? 'Up to 5,000 rows'
-                      : 'Paste one URL per line'}
-                </small>
-              </button>
-            );
-          })}
+          {(
+            [
+              ['radar', 'From Radar', 'Dynamic · your selected prospects', Radio],
+              ['csv', 'CSV upload', 'Static · one fixed import', Upload],
+              [
+                'sales_navigator',
+                'Sales Navigator URL',
+                'Dynamic · search or saved lead list',
+                Link2,
+              ],
+            ] as const
+          ).map(([key, label, hint, Icon]) => (
+            <button
+              key={key}
+              className={`source-option ${source === key ? 'selected' : ''}`}
+              onClick={() => {
+                setSource(key);
+                resetPreview();
+              }}
+            >
+              <Icon size={22} />
+              <strong>{label}</strong>
+              <small>{hint}</small>
+            </button>
+          ))}
         </div>
         {source === 'radar' && (
           <>
+            <p>
+              Use the prospects selected in your own Radar account. Filters stay attached to this
+              list.
+            </p>
             <div className="form-grid">
               <Field label="Grade">
                 <Select
                   value={grade}
-                  onChange={setGrade}
+                  onChange={(value) => {
+                    setGrade(value);
+                    resetPreview();
+                  }}
                   options={[
                     { value: '', label: 'All grades' },
-                    ...['A+', 'A', 'B', 'C', 'D'].map((v) => ({ value: v, label: v })),
+                    ...['A+', 'A', 'B', 'C', 'D'].map((value) => ({ value, label: value })),
                   ]}
-                />
-              </Field>
-              <Field label="Minimum score">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={score}
-                  onChange={(e) => setScore(Number(e.target.value))}
-                />
-              </Field>
-              <Field label="Owner">
-                <input
-                  value={owner}
-                  onChange={(e) => setOwner(e.target.value)}
-                  placeholder="All owners"
                 />
               </Field>
               <Field label="Country">
                 <input
                   value={country}
-                  onChange={(e) => setCountry(e.target.value)}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    resetPreview();
+                  }}
                   placeholder="All countries"
                 />
               </Field>
             </div>
-            <Button onClick={fetchRadar} disabled={busy}>
-              <Radio size={16} />
-              {busy ? 'Loading…' : 'Load prospects from Radar'}
+          </>
+        )}
+        {source === 'sales_navigator' && (
+          <Field
+            label="Sales Navigator URL"
+            hint="Paste a people-search URL or a saved lead-list URL. Your assigned sender needs Sales Navigator access."
+          >
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                resetPreview();
+              }}
+              placeholder="Paste your Sales Navigator URL"
+            />
+            <small className="muted">
+              LinkedIn limits each search to 2,500 results. Narrow your search to cover additional
+              prospects.
+            </small>
+          </Field>
+        )}
+        {source !== 'csv' && (
+          <>
+            <div className="notice">
+              Refreshes hourly and adds new matches automatically. Existing prospects keep their
+              progress.
+            </div>
+            {isLocal && (
+              <p className="muted">
+                Sign in to load real prospects and keep dynamic lists refreshing.
+              </p>
+            )}
+            <Button
+              disabled={busy || isLocal || (source === 'sales_navigator' && !url.trim())}
+              onClick={preview}
+            >
+              {busy ? 'Loading…' : 'Preview matching prospects'}
             </Button>
           </>
         )}
@@ -169,20 +246,26 @@ export default function ImportDialog({
             <div className="upload-zone">
               <Upload size={26} />
               <strong>Choose a CSV file</strong>
-              <p>First row should contain column names. Maximum 5,000 prospects.</p>
+              <p>
+                Column headings on the first row. Up to 5,000 rows and 5 MB. The imported list will
+                not change automatically.
+              </p>
               <input
                 aria-label="Upload prospects CSV"
                 type="file"
                 accept=".csv,text/csv"
                 onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  if (f.size > 5_000_000) {
-                    setMessage('File is too large. Maximum file size is 5 MB.');
+                  setRaw([]);
+                  setHeaders([]);
+                  setFileName('');
+                  resetPreview();
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 5_000_000) {
+                    setMessage('Maximum CSV size is 5 MB.');
                     return;
                   }
-                  const text = await f.text();
-                  const parsed = Papa.parse<Record<string, string>>(text, {
+                  const parsed = Papa.parse<Record<string, string>>(await file.text(), {
                     header: true,
                     skipEmptyLines: true,
                   });
@@ -191,27 +274,28 @@ export default function ImportDialog({
                     return;
                   }
                   if (parsed.data.length > 5000) {
-                    setMessage('This CSV has more than 5,000 rows. Split it into smaller files.');
+                    setMessage('Upload at most 5,000 rows.');
                     return;
                   }
                   const h = parsed.meta.fields || [];
+                  const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
                   setHeaders(h);
                   setRaw(parsed.data);
-                  const norm = (v: string) => v.toLowerCase().replace(/[^a-z]/g, '');
+                  setFileName(file.name);
                   setMapping(
                     Object.fromEntries(
-                      fields.map((k) => [
-                        k,
+                      fields.map((key) => [
+                        key,
                         h.find(
                           (x) =>
-                            norm(x) === norm(k) ||
-                            (k === 'linkedinUrl' &&
+                            norm(x) === norm(key) ||
+                            (key === 'linkedinUrl' &&
                               ['linkedin', 'profileurl', 'linkedinprofileurl'].includes(norm(x))),
                         ) || '',
                       ]),
                     ),
                   );
-                  setMessage(`${parsed.data.length} rows loaded. Check the column mapping below.`);
+                  setMessage(`${parsed.data.length} rows loaded. Check the column mapping.`);
                 }}
               />
             </div>
@@ -220,51 +304,52 @@ export default function ImportDialog({
               onClick={() =>
                 exportCsv('campaign-import-template.csv', [
                   {
-                    linkedinUrl: 'https://www.linkedin.com/in/example',
-                    firstName: 'Alex',
-                    lastName: 'Example',
-                    company: 'Example Ltd',
-                    title: 'Director',
-                    country: 'France',
+                    linkedinUrl: '',
+                    firstName: '',
+                    lastName: '',
+                    company: '',
+                    title: '',
+                    country: '',
+                    city: '',
+                    language: '',
                   },
                 ])
               }
             >
               <Download size={15} />
-              Download CSV template
+              Download blank CSV template
             </button>
             {headers.length > 0 && (
               <div className="form-grid">
-                {fields.map((k) => (
-                  <Field key={k} label={labels[k]}>
-                    <Select
-                      value={mapping[k] || ''}
-                      onChange={(v) => setMapping({ ...mapping, [k]: v })}
-                      options={[
-                        { value: '', label: 'Not mapped' },
-                        ...headers.map((h) => ({ value: h, label: h })),
-                      ]}
-                    />
-                  </Field>
+                {fields.map((key) => (
+                  <div
+                    key={key}
+                    className={`mapping-field ${mapping[key] ? 'is-mapped' : 'is-unmapped'}`}
+                  >
+                    <Field
+                      label={labels[key]}
+                      hint={
+                        mapping[key]
+                          ? 'Mapped'
+                          : key === 'linkedinUrl'
+                            ? 'Not mapped · required'
+                            : 'Not mapped · optional'
+                      }
+                    >
+                      <Select
+                        value={mapping[key] || ''}
+                        onChange={(value) => setMapping({ ...mapping, [key]: value })}
+                        options={[
+                          { value: '', label: 'Not mapped' },
+                          ...headers.map((value) => ({ value, label: value })),
+                        ]}
+                      />
+                    </Field>
+                  </div>
                 ))}
               </div>
             )}
           </>
-        )}
-        {source === 'urls' && (
-          <Field
-            label="LinkedIn profile URLs"
-            hint="Profiles without a name can use message variable fallbacks."
-          >
-            <textarea
-              rows={7}
-              placeholder={
-                'https://www.linkedin.com/in/example\nhttps://www.linkedin.com/in/another-person'
-              }
-              value={urls}
-              onChange={(e) => setUrls(e.target.value)}
-            />
-          </Field>
         )}
         {message && (
           <div className="notice" role="status">
@@ -288,33 +373,51 @@ export default function ImportDialog({
                   <tr>
                     <th>Prospect</th>
                     <th>Company</th>
-                    <th>Grade</th>
+                    <th>Profile</th>
                   </tr>
                 </thead>
                 <tbody>
                   {effective.slice(0, 5).map((p, i) => (
                     <tr key={i}>
-                      <td>{`${p.firstName || ''} ${p.lastName || ''}`.trim() || p.linkedinUrl}</td>
+                      <td>
+                        {`${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Name not provided'}
+                      </td>
                       <td>{p.company || '—'}</td>
-                      <td>{p.grade ? <Badge tone="grade">{p.grade}</Badge> : '—'}</td>
+                      <td>{p.linkedinUrl || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {more && (
+              <p className="muted">
+                This is the first page. Saving connects the complete list and continues importing.
+              </p>
+            )}
           </>
         )}
       </div>
       <div className="modal-foot">
-        <span className="muted">{isDemo ? 'Demo · saved in this browser' : ''}</span>
+        <span className="muted">
+          {isLocal ? 'Local draft · your data stays in this browser' : ''}
+        </span>
         <div className="row">
           <Button onClick={onClose}>Cancel</Button>
           <Button
             primary
-            disabled={!result.added || busy}
-            onClick={() => onImport(result.people, result.enrollments)}
+            disabled={
+              busy ||
+              (source === 'csv'
+                ? !result.added || !mapping.linkedinUrl
+                : isLocal || (source === 'sales_navigator' && !url.trim()))
+            }
+            onClick={save}
           >
-            Add {result.added} prospects
+            {busy
+              ? 'Saving…'
+              : source === 'csv'
+                ? `Import ${result.added} prospects`
+                : 'Connect dynamic list'}
           </Button>
         </div>
       </div>

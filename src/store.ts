@@ -1,20 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Data } from './model';
-import { demoData } from './demo';
+import { emptyWorkspace, migrateLocalDrafts } from './workspace';
 const env = (import.meta as ImportMeta & { env: Record<string, string> }).env;
 export const supabase =
   env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY
     ? createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY)
     : null;
-export const isDemo = !supabase;
-const key = 'gershon-campaign-demo-v1';
+export const isLocal = !supabase;
+const key = 'gershon-campaign-drafts-v2';
 export async function loadData(): Promise<{ data: Data; revision: number }> {
   if (!supabase) {
     try {
       const saved = localStorage.getItem(key);
       if (saved) return { data: JSON.parse(saved), revision: 0 };
+      const previous = localStorage.getItem('gershon-campaign-demo-v1');
+      if (previous) {
+        const data = migrateLocalDrafts(JSON.parse(previous));
+        localStorage.setItem(key, JSON.stringify(data));
+        return { data, revision: 0 };
+      }
     } catch {}
-    return { data: demoData(), revision: 0 };
+    return { data: emptyWorkspace(), revision: 0 };
   }
   const { data, error } = await supabase.rpc('campaign_snapshot');
   if (error) throw error;
@@ -32,17 +38,27 @@ export async function saveData(data: Data, revision: number): Promise<number> {
   if (error) throw error;
   return next;
 }
-export async function providerAction(action: string, payload: unknown) {
-  if (!supabase) throw new Error('Connect the database and LinkedIn provider to use this action.');
-  const { data, error } = await supabase.functions.invoke('campaign-api', {
+async function invokeAction(endpoint: string, action: string, payload: unknown) {
+  if (!supabase) throw new Error('Sign in to the connected workspace to use this action.');
+  const { data, error } = await supabase.functions.invoke(endpoint, {
     body: { action, payload },
   });
-  if (error) throw error;
+  if (error) {
+    if (error.context instanceof Response) {
+      const body = await error.context.json().catch(() => null);
+      if (body?.error) throw new Error(body.error);
+    }
+    throw error;
+  }
   if (data.error) throw new Error(data.error);
   return data;
 }
+export const providerAction = (action: string, payload: unknown) =>
+  invokeAction('campaign-api', action, payload);
+export const listAction = (action: string, payload: unknown) =>
+  invokeAction('campaign-lists', action, payload);
 
-/** Live LinkedIn (Unipile) health from the linkedin-status Edge Function. Works in demo mode too. */
+/** Read-only connection health. This does not create or assign a workspace sender. */
 export type LinkedInStatus = {
   connected: boolean;
   account?: string;
