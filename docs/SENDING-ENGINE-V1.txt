@@ -1,0 +1,124 @@
+campaign.gershon.ai — Build Brief for Codex (Sending Engine v1)
+Owner: Olivier Attia (CTO, Gershon Consulting) · Builder: Codex · Reviewer/tester: Claude · Nov 24, 2026
+0. How to use this brief
+You (Codex) build. Claude reviews each PR and tests it. Olivier only approves and tests in the browser. Olivier never runs commands, uploads files or clicks setup buttons, so never end a task with "now run X". Work in the repo gershonconsulting/campaign, open one PR per milestone (section 12), and stop at each milestone for review.
+1. Goal
+Make campaign.gershon.ai run real LinkedIn drip campaigns, end to end, on prospects collected in Radar (radar.gershon.ai). It replaces Botdog. It must be simple and reliable. No AI features.
+A campaign = a list of prospects + a sequence of steps:
+1.  Visit profile (optional)
+2.  Connection request with an optional note (max 300 characters)
+3.  Wait until accepted (with a timeout)
+4.  Message 1 after N days
+5.  Follow-up messages after N days each
+6.  Stop for that prospect as soon as they reply
+Definition of done for v1: Olivier creates a campaign from Radar prospects, presses Start, and over the following days invites and messages go out by themselves, within safe daily limits. Replies appear in the in-app inbox and stop the sequence, and the dashboard shows accurate counts.
+2. Current state (as of 24 Nov 2026)
+Repo: gershonconsulting/campaign.
+• PR #1 (draft), codex/campaign-operator-preview → main: your React/Vite operator preview with Radar styling. It covers campaign creation, prospect imports, a sequence editor, contacts, a demo inbox, sender limits, reporting, exports, a Supabase migration (revisioned workspace JSON snapshot), a scheduling planner with tests, CI, and a manually run Cloudflare Pages workflow. Start and reply endpoints deliberately reject live delivery.
+• PR #2, claude/unipile-v2 → codex/campaign-operator-preview: Claude's Unipile v2 client in supabase/functions/_shared/unipile-v2.ts, plus a read-only linkedin-status Edge Function, already deployed. Tests: 10/10 pass and deno check passes. It has a typed UnipileError with retryable set for 429 and 5xx.
+Supabase: the radar project (pkzeeqehwmtnqxdpdesl) hosts the Campaign backend too, so Radar's prospects and Campaign data live in the same database.
+• The Unipile API key is stored in Supabase Vault as unipile_api_key. Edge Functions read it through public.campaign_unipile_key(), which only service_role can execute. An Edge Function secret UNIPILE_API_KEY, if set, overrides it. Never put the key in code, commits, logs or test fixtures.
+• GET /functions/v1/linkedin-status (JWT required) returned connected: true on 23 Nov 2026.
+• Default sender account id: acc_01m84yrp1bfzxv230q672gh957, overridable with UNIPILE_ACCOUNT_ID.
+Still on Unipile v1: linkedin-connect and campaign-api still use the v1 DSN and hosted/accounts/link.
+3. Unipile v2 facts (tested live on Olivier's account)
+• Base URL https://api.unipile.com/v2/{account_id}/.... Header X-API-KEY. Classic LinkedIn inbox id: CLASSIC_PRIMARY.
+• Look up a person: GET /users/{public_identifier}?variant=linkedin_classic returns id (the ACoA… provider id), specifics.network_distance (FIRST_DEGREE / SECOND / THIRD_DEGREE) and can_send_inmail. URL-encode non-ASCII slugs.
+• Connection request: POST /users/me/relation-requests with body {"user_id":"ACoA…","message":"…"} returns 201 with an id SENT_…. The note is limited to 300 characters.
+• First message: POST /inboxes/CLASSIC_PRIMARY/chats/send with body {"text":"…","users_ids":["ACoA…"]}. users_ids must be an array; a plain string returns a misleading 404. The response gives chat_id and message_id, which you store.
+• Reply in an existing chat (documented, not tested): POST /chats/{chat_id}/messages/send with body {"text":"…"}.
+• List chats: GET /inboxes/CLASSIC_PRIMARY/chats?limit=25. The response is {data, next_cursor} (data, not items). limit max is 25; paginate with cursor.
+• Messaging only works with 1st-degree connections. Anyone else returns 403 provider/access_restricted.
+• Rate limit: after about 10 quick calls Unipile returns 429 "We only allow 10 requests. Retry in N seconds."
+• Webhooks: POST /v2/webhooks/endpoints/. Events: message.new, message.receipt.read, relation.new (can lag up to 6 h), account.status.disconnected, account.status.errored, account.locked.
+• Docs: https://developer.unipile.com/v2.0/reference
+4. Architecture
+Keep the existing React/Vite front end and Supabase. Add a server-side execution engine made of Postgres tables, a queue and Edge Functions run by pg_cron. The browser never calls Unipile.
+Radar prospects ──import──▶ campaign_contacts
+                                  │
+ pg_cron (every minute) ──▶ campaign-planner ──▶ campaign_actions (queue)
+ pg_cron (every minute) ──▶ campaign-worker  ──▶ Unipile v2 (paced)
+ Unipile webhooks ────────▶ unipile-webhook  ──▶ campaign_events ──▶ state updates
+ pg_cron (every 30 min) ──▶ campaign-reconcile (catch missed webhooks)
+ pg_cron (daily 6 PM ET) ─▶ campaign-report
+Replace the workspace JSON snapshot with the normalized execution model from the spec in docs/. The UI can keep the snapshot for drafts only if that is simpler, but every sending decision must come from normalized tables.
+5. Data model (minimum)
+All tables carry workspace_id and have RLS: users see only their own workspace. Only service_role writes engine tables.
+• sender_accounts: id, workspace_id, unipile_account_id, label, timezone, working_days, working_hours_start, working_hours_end, daily_invite_limit (default 20, hard cap 25), daily_message_limit (default 50, hard cap 80), status (active / paused / disconnected), paused_reason.
+• campaigns: id, workspace_id, name, sender_account_id, status (draft / running / paused / completed / archived), started_at, settings (jsonb: accept timeout in days, default 21).
+• campaign_steps: id, campaign_id, position, type (visit / invite / message), delay_days, body (template), invite_note (nullable).
+• campaign_contacts: id, campaign_id, radar_prospect_id, linkedin_public_id, provider_id (ACoA…), first_name, last_name, company, title, state (section 6), current_step, next_action_at, chat_id, invite_id, last_error, timestamps. Unique on (campaign_id, linkedin_public_id).
+• campaign_actions (the queue): id, contact_id, sender_account_id, type (lookup / visit / invite / message / reply), step_id, scheduled_for, status (pending / claimed / done / failed / skipped), attempts, idempotency_key (unique), claimed_at, result (jsonb), error.
+• campaign_events: raw and normalized events (webhook and reconcile) with unipile_event_id unique, so each event is processed only once.
+• sender_daily_counters: (sender_account_id, date in the sender's timezone, invites_sent, messages_sent).
+• inbox_messages: contact_id, chat_id, direction (in / out), text, sent_at, unipile_message_id (unique).
+6. Contact state machine
+queued → looked_up ─┬─ FIRST_DEGREE ───────────────▶ connected
+                    └─ other ─▶ invite_sent ─(relation.new)─▶ connected
+                                     └─(timeout)─▶ invite_expired (stop)
+connected → messaging (step k sent, wait delay_days) → … → finished
+any state ─(reply received)─▶ replied (stop all further steps)
+any state ─(hard error)─▶ failed  |  manual ─▶ removed
+Rules:
+• Someone already at 1st degree skips the invite and goes straight to message 1.
+• A reply (message.new from the prospect in the contact's chat, or a match found by reconcile) immediately cancels that contact's pending actions.
+• An invite with no acceptance after accept timeout days becomes invite_expired. Do not withdraw the invite automatically in v1.
+• Steps are locked once a campaign starts, as the preview already does. Editing a running campaign is out of scope for v1.
+7. Pacing, limits and safety (most important)
+• Global Unipile limiter: at most 8 requests per rolling 60 s per API key, enforced in the database (a token-bucket row updated with SELECT … FOR UPDATE), never in memory.
+• Claiming queue rows: use FOR UPDATE SKIP LOCKED. Claims older than 10 min return to pending. Each action has an idempotency_key (contact_id:step_id:type), so a retry never sends twice.
+• Per-sender daily caps come from sender_daily_counters, in the sender's timezone. Lookups and visits do not count.
+• Working window: send only on working days between the start and end hours in the sender's timezone. Defaults are Monday–Friday, 08:30–18:00.
+• Spacing: random jitter of 2–8 minutes between two sends from the same sender. Never send in bursts.
+• 429: read the "Retry in N seconds" value, delay the action that long plus jitter, and do not count it as a failure. On 5xx, retry with exponential backoff (1, 5, 15 min, max 3 attempts), then failed.
+• 403 provider/access_restricted on a message means the person is not 1st degree: switch the contact back to the invite path.
+• Account events: account.status.disconnected, account.status.errored and account.locked pause the sender and all its running campaigns immediately. The UI shows a red banner with the reason.
+• Kill switch: an env var / setting CAMPAIGN_SENDING_ENABLED (default false). While it is false, the worker runs in dry-run: it does everything except the Unipile write calls and logs what it would have sent. Lookups may run.
+• Never message or invite the same provider_id twice across all campaigns in a workspace, including campaigns that already finished.
+8. Templates
+• Variables: {{first_name}}, {{last_name}}, {{company}}, {{title}}, each with a fallback syntax {{first_name|there}}.
+• Validate at save time: no unknown variables, invite note at most 300 characters after rendering with the longest real values. Show a live preview using a real contact.
+• Plain text only: no links in the invite note, keep LinkedIn line breaks.
+9. Webhooks and reconcile
+• Edge Function unipile-webhook (public URL with no JWT check, but it verifies a shared secret header that you configure when registering the webhook). Store the raw event first, then process it. Respond 200 quickly.
+• Register the webhook endpoint through the Unipile API from a one-off admin function or script that Codex or Claude runs, not Olivier.
+• campaign-reconcile every 30 min: list recent chats (paginate, limit=25) to catch replies, and check pending invitees (look up network_distance) to catch acceptances that relation.new delivered late or missed. This loop is required, because relation.new can lag up to 6 h.
+10. Radar integration
+• Import: in the campaign screen, the user picks Radar prospects (filters, list or selection) and adds them to a campaign. Read from the Radar tables in the same Supabase project. Inspect the schema first and do not change Radar's existing tables destructively.
+• Write-back: expose each prospect's campaign status to Radar (campaign name, state, last event date) through a new view or table, radar_campaign_status, with no destructive change to Radar. Coordinate in the PR description so Claude can wire Radar's UI to it.
+• Deduplicate on the LinkedIn public identifier.
+11. Product surfaces to finish
+• Campaign dashboard: for each campaign, invites sent, accepted, acceptance %, messages sent, replies, reply %, and in-queue / failed counts. For each sender, today's usage against its caps.
+• Inbox: threads from inbox_messages, with replying from the app (the action type reply, through the same queue and limiter).
+• Contacts table: state, next action time, last error. Actions: pause/resume a contact, remove a contact.
+• Sender settings: limits, working hours, timezone, pause/resume, and the connect/reconnect LinkedIn flow on v2 hosted auth (move linkedin-connect and campaign-api off v1; confirm the v2 hosted-auth endpoint in the docs and note it in the PR).
+• Daily report, built into the app (endpoint + pg_cron, not an external scheduler): every day at 18:00 ET, email via Resend to report@gershonconsulting.com. Subject: campaign.gershon.ai report — <start date> to <end date>. Body: per-campaign numbers from the dashboard plus sender health.
+• Keep the Gershon/Radar look; Gershon.ai red is the main color.
+12. Milestones (one PR each, in this order)
+1.  M1 — Foundation. Merge PR #2 into your branch. Move linkedin-connect and campaign-api to v2. Add STATUS.md. Accept: all tests green, linkedin-status still connected, and no v1 calls left (grep).
+2.  M2 — Engine in dry-run. Normalized tables plus RLS, planner, queue, worker, limiter, state machine, all with CAMPAIGN_SENDING_ENABLED=false. Accept: unit tests for the state machine, limiter, daily caps, working window, idempotency and 429 handling; a seeded test campaign with 20 fake contacts progresses correctly in dry-run logs over simulated days.
+3.  M3 — Live sending. Real lookup, invite and message calls behind the kill switch. Accept: with the switch on, a 5-prospect pilot run by Claude on Olivier's account sends invites within the limits, and 1st-degree contacts get message 1.
+4.  M4 — Webhooks, reconcile and inbox. Accept: an acceptance moves the contact to connected and schedules message 1; a reply stops the sequence and shows in the inbox; replying from the app works.
+5.  M5 — Radar import/write-back, dashboard and daily report. Accept: import from Radar works end to end, the status view is readable from Radar, and the report email arrives at report@gershonconsulting.com.
+6.  M6 — Deploy. Cloudflare Pages through the existing workflow to campaign.gershon.ai, plus a production health check. Accept: the site loads, login works, and linkedin-status is connected.
+13. Testing rules
+• Never fabricate test results. Paste the actual test output in each PR.
+• Mock Unipile in unit and integration tests, using a fake server that reproduces the 429, 403-not-1st-degree, data/next_cursor and users_ids-array behaviours above.
+• Run no live calls in CI. Claude runs live checks after review.
+• Each PR description ends with a short "What to test" list written for a non-developer (click paths, expected result).
+14. Security
+• Secrets live only in Supabase Vault / Edge Function secrets. Nothing in the repo, the client bundle or logs. Redact the API key and message text in error logs.
+• RLS on every table. The browser uses the anon key with the user's JWT only; the engine uses service_role server-side.
+• The webhook verifies its shared secret and is idempotent.
+• Before go-live, flag in the PR that the Unipile test key must be rotated. Claude does the rotation in Vault.
+15. Housekeeping
+• Keep STATUS.md at the repo root (under 60 lines): ✅ done / ❌ open items, known issues, deploy route and date. Update it in every PR.
+• Make small, meaningful commits and keep a clear PR description: what changed, tests, what to test, and open items.
+• Run no destructive database migrations (dropping or rewriting data) without an explicit OK in the PR. Do not deploy to production before M6, and only through the workflow.
+16. Out of scope for v1
+AI-written messages, email steps, Sales Navigator and InMail, multi-sender rotation within one campaign, A/B testing, and editing a running campaign's steps.
+17. Questions you must ask, not guess
+• Radar's schema doesn't match what this brief assumes (prospect ids, LinkedIn URL field).
+• The v2 hosted-auth endpoint for connecting a LinkedIn account isn't clearly documented.
+• Anything would require deleting or rewriting existing Radar or Campaign data.
+Put questions in the PR description under "Questions for Olivier/Claude" and continue with the other milestones' work while you wait.

@@ -1,23 +1,34 @@
 # STATUS — campaign.gershon.ai
-Last updated: 2026-11-23
-
-## State
-Research + specification phase. No code yet.
+Last updated: 2026-11-24 (America/La_Paz)
 
 ## Done ✅
-- ✅ Botdog reviewed page by page (dashboard, campaigns, 5-step wizard, sequence builder, contacts, inbox, all settings, team dashboard, integrations)
-- ✅ 44 screenshots stored, prospect names/messages blurred (repo is public)
-- ✅ "How Botdog works without an extension" research (cloud session via li_at cookie or credentials, proxy per account, most likely built on Unipile)
-- ✅ Full specification v1.0 (docs/SPECIFICATION.md)
+- ✅ M1: Unipile v2 foundation, Vault fallback and legacy adapter removal (PR #3).
+- ✅ M1: deployed LinkedIn health returned connected:true on November 24.
+- ✅ M2: normalized execution tables, workspace RLS and service-only execution RPCs.
+- ✅ M2: planner, fenced queue claims, dry-run worker and optional minute cron script.
+- ✅ M2: database rolling limiter, shared daily caps, sender windows and jitter.
+- ✅ M2: state machine, retries, provider dedupe, reply cancellation and pause controls.
+- ✅ M2: 20-contact simulation: 16 finished, 3 replied, 1 invite expired.
+- ✅ Local: 45 passing Node tests; 2 multi-connection tests reserved for PostgreSQL CI.
+- ✅ Scheduler authentication/kill-switch test, build and five function type checks pass.
 
 ## Open ❌
-- ❌ Decide LinkedIn execution provider (Unipile recommended) and open account
-- ❌ Decide Supabase project (reuse Radar's or new)
-- ❌ M1–M5 build (see spec §13)
-- ❌ Make this repo private (it contains Gershon campaign data in screenshots, even if blurred)
+- ❌ M2 review and acceptance by Claude (PR #4).
+- ❌ M3: actual provider dispatch, durable send intent and five-prospect pilot.
+- ❌ M4: webhooks, reconcile, inbox, reconnect and connection browser click-through.
+- ❌ M5: inspect Radar schema; import/write-back, metrics and Resend daily report.
+- ❌ M6: production deployment via existing workflow, login and health verification.
+- ❌ Claude must rotate the Unipile test key in Vault before go-live.
 
-## Known issues
-- A test draft "New campaign" (0 contacts, not started) was created in Botdog during the review — can be deleted.
+## Known issues / decisions
+- Olivier deferred M1's connection click-through to M4 with reconnect.
+- M2 is dry-run only; enabling live mode returns 503. No provider requests occur.
+- Browser Start/Reply stay gated until normalized live integration is commissioned.
+- No production migration, function deployment or cron installation performed in M2.
+- Simulated records/counters must not be promoted into live records.
+- The existing preview bundle still triggers Vite's 500 kB size warning.
+- Full M2 design/evidence: docs/M2-ENGINE.md and docs/validation/M2-SIMULATION.json.
 
-## Deploy route (planned)
-GitHub Actions → Cloudflare Pages (campaign.gershon.ai) + Supabase migrations.
+## Deploy route
+Existing Cloudflare Pages project: gershon-campaign, domain: campaign.gershon.ai.
+Use .github/workflows/deploy.yml at M6 only. No direct uploads.
