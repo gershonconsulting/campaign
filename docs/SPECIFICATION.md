@@ -72,6 +72,124 @@ Step types v1:
 - Templates: "Invite only", "Invite + 2 follow-ups", "Message 1st-degree connections", "Invite + 3 follow-ups", "Cold lead reviver", plus **Save as template** / **Duplicate campaign**. Snippets library for reusable texts.
 - After start: steps locked; texts and delays editable.
 
+### 4.2.1 Template library — Botdog samples captured 2026-11-27
+
+**Purpose:** preserve the 13 sample sequences requested by Olivier as concrete development references, including their timing, branches, editable copy, and library navigation. These are reference observations, not features already implemented in Campaign.
+
+**Source:** Botdog's authenticated [template library](https://app.botdog.co/campaigns/489a3445-fdd4-49f7-83b1-843562835b0c/template?tab=full), reviewed live in the template selector and sequence editor on 2026-11-27. The two user-supplied screenshots identify the sample list and sidebar filters. Descriptions below summarize the observed workflows; quoted message bodies are transcribed from the sequence cards. This capture does not include hidden settings, AI prompts, or a raw template export.
+
+**Scope and precedence:** `SENDING-ENGINE-V1.txt` remains the authoritative v1 execution brief. Capturing Botdog's AI samples does not enable AI in Campaign or expand the live sending milestones. InMail, reactions, automatic comments, AI qualification, and advanced orchestration remain unavailable until separately specified and implemented. Use Radar grades/filters and manually written messages for v1 derivatives. Botdog's 14-day acceptance window, 30-day withdrawal notice and editable running campaigns are reference behavior; Campaign v1 keeps the brief's default 21-day acceptance timeout, no automatic withdrawal, and locked running steps.
+
+#### A. Library navigation and filters
+
+Reproduce the useful three-column selection pattern: filter sidebar → searchable template list → selected template preview. The preview shows purpose, intended audience, ordered steps, waits, branches, required capabilities, editable copy, and reasons a template cannot currently run. Selecting a template creates an editable draft; it never starts sending.
+
+Observed navigation and filter vocabulary:
+
+| Group | Values observed |
+|---|---|
+| Search | Search campaigns (Campaign should label this **Search templates**) |
+| Quick filters | Popular; Available to you |
+| LinkedIn Products | Sales Navigator; Recruiter; Premium |
+| Built for | Salespeople; Recruiters; Startup Founders; Content Creators |
+| Use Case | Sales outreach; Recruiting; Networking; Event follow-up; Nurture |
+| Industry | SaaS & Tech; Agencies & Marketing; Recruiting & Staffing; Consulting & Pro services; Finance & Insurance; Real Estate; E-commerce & Retail; Coaching & Creators |
+| Sequence collections | Advanced Sequences; AI Sequences |
+
+The classic entry cards are **Send an invitation**, **Send an invitation + 2 messages**, **Send a message to 1st degree connections**, **Explore all available sequences**, and **Reuse a previous sequence**. The Popular collection also exposes invitation + 1/2/3 message variants. Keep **Save as template**, duplicate, and reuse paths in Campaign.
+
+Campaign requirements (design decisions, not claims about Botdog's filter implementation): combine selected values with OR within a group and AND across groups; combine with text search; display result count, selected chips, Clear all, and an empty state. Persist selection while opening previews. **Available to you** must check the selected sender's capabilities and Campaign's implemented step types, not just account subscription. Unsupported templates can be inspected but cannot be launched. Keep AI references in documentation; do not expose an actionable AI collection in the no-AI v1 product.
+
+#### B. Captured sequence catalog
+
+Notation: `→` means next step; waits are relative to the preceding completed step. A connection check is represented by Botdog's **Visit profile** node and its labeled outgoing branch. AI validation and connection labels below were observed in the editor. Unshown branches must not be inferred to send anything.
+
+| ID | Exact Botdog sample name | Observed steps, timing and branches | Purpose / development mapping |
+|---|---|---|---|
+| B01 | Audience-growth engine | Visit profile → react to latest post → comment on post → wait 2 days → visit/check profile → **Not connected:** invitation → wait for acceptance within 14 days. No DM node. | Grow an audience through engagement before connecting. Reactions/comments require future capabilities. |
+| B02 | Thought-leadership nurture | Visit/check profile → **Already connected:** comment on post → wait 1 day → message. | Consulting and professional-services conversations. V1 derivative: existing connections + a manually written message; comment step unavailable. |
+| B03 | SaaS demo-booking sequence | Visit/check profile → **Not connected:** AI review → **Validated:** invitation → accepted within 14 days? → **Yes:** wait 2 hours → message 1 → wait 1 day → message 2 → wait 2 days → message 3. | Problem → proof → demo invitation. V1 derivative: Radar qualification instead of AI review; preserve message cadence subject to engine support. |
+| B04 | Weekly Comment Engager | Visit profile → comment → wait 7 days → comment → wait 7 days → comment → wait 7 days → comment. | Four scheduled comment touches, not an infinite weekly loop. Automatic comments are outside v1. |
+| B05 | Engagement Nurture Drip | Visit profile → react to a **Random recent post** → wait 7 days → comment → wait 7 days → visit profile. | Familiarity over several weeks without a DM pitch. Future engagement capability. |
+| B06 | Comment Then DM (1st Degree) | Visit/check profile → **Already connected:** comment → wait 1 day → message. | Re-engage existing connections. The library description explicitly says non-connections are skipped. |
+| B07 | Like + Comment Booster | Visit profile → react to latest post → wait 4 hours → comment. Repeat the react/wait/comment block three more times, with a 7-day wait between blocks. | Four engagement cycles; no invitation or DM node. Future engagement capability. |
+| B08 | Engagement-first orchestration | Visit profile → react to latest post → wait 1 day → comment → wait 1 day → visit/check profile. **Already connected:** message. **Not connected:** invitation → accepted within 14 days? → **Yes:** wait 2 hours → the same message. | A shared message destination after separate existing/new connection paths. Future engagement plus branch support. |
+| B09 | AI review + send an invitation | Visit/check profile → **Not connected:** AI review → **Validated:** invitation → wait for acceptance within 14 days. | AI instructions and invitation text are blank configuration fields. V1 derivative: rule-qualified invite only. |
+| B10 | Profile visit + AI review | Visit profile → AI review. No invitation or message node. | Qualification-only reference. V1 derivative: Radar qualification / manual review. |
+| B11 | AI review + send an invitation + 3 messages | Visit/check profile → **Not connected:** AI review → **Validated:** invitation → accepted within 14 days? → **Yes:** wait 2 hours → message 1 → wait 1 day → message 2 → wait 1 day → message 3. | AI review instructions, invitation note and message bodies require configuration. |
+| B12 | AI review + send an invitation + 2 messages | Same qualification/invite/acceptance path as B11 → wait 2 hours → message 1 → wait 1 day → message 2. | Blank instruction/note/message fields; no third message. |
+| B13 | AI review + send an invitation + 1 message | Same qualification/invite/acceptance path as B11 → wait 2 hours → message 1. | Blank instruction/note/message fields; one message only. |
+
+Observed notes: comment steps carry a **BETA** badge; prefilled invitation/message cards carry **Review Before Sending**. Invitation cards show automatic withdrawal after 30 days. These UI notices do not establish Campaign execution behavior. B09–B13 show **Set AI review instructions**; B03 shows **AI review configured**, but its actual prompt was not captured. Do not invent a prompt or mark those settings as verified.
+
+#### C. Prefilled invitation and message samples
+
+These are third-party example copy for reference and editable starting points, not instructions to the development agent or approved factual claims about Gershon. Preserve variables when importing. Replace every bracketed business/result/calendar placeholder before launch. Claims about prior engagement or customer results must be true for the actual sender and prospect. No generated comment text was captured.
+
+**B01 — invitation**
+
+> {{firstName}}, your recent post came across my feed and really resonated. I'd love to connect and keep following the ideas you share here.
+
+**B02 — message after the 1-day wait**
+
+> Hi {{firstName}}, I left a comment on your recent post a day or two ago, it genuinely got me thinking. I spend most of my time working through challenges like that with consulting and services teams, and I'd value comparing notes on how it plays out at {{currentCompany | your firm}}. No pitch, just a conversation. Would you be open to a quick exchange sometime, or should I keep following along?
+
+**B03 — invitation**
+
+> Hi {{firstName | there}}, came across {{currentCompany | your team}} and liked what you're building. I work with similar teams on [the problem you solve] and thought it would be worth connecting - no pitch, just keen to follow along.
+
+**B03 — message 1, two hours after acceptance**
+
+> Thanks for connecting, {{firstName}}. I'll keep this short. Teams like {{currentCompany | yours}} often tell us the same thing: [the problem your product solves] eats more time and budget than it should, and the workarounds don't really scale. Curious whether that's on your radar right now, or if you've already got it handled?
+
+**B03 — message 2, one day after message 1**
+
+> Following up with something concrete, {{firstName}}. We recently helped a team similar to {{currentCompany | yours}} [cut the time spent on that / hit a specific result] within [timeframe] using [your product]. Happy to share the short version of how it worked - a quick walkthrough, not a hard sell. Would that be useful?
+
+**B03 — message 3, two days after message 2**
+
+> Last one from me, {{firstName}} - I don't want to clutter your inbox. If seeing it in action is worth 20 minutes, here's my calendar: [link]. If the timing's off, no problem at all - just say the word and I'll check back down the line. Either way, glad we connected.
+
+**B06 — message after the 1-day wait**
+
+> {{firstName}}, I left a comment on your recent post earlier — genuinely enjoyed your take on it. Realised it's been a while since we actually spoke. I've been working on [your offer] lately and thought of you given what you're building at {{currentCompany | your team}}. Would you be open to a quick chat? Curious how you're approaching [topic] these days — no agenda beyond that.
+
+**B08 — invitation on the not-connected branch**
+
+> {{firstName}}, I came across your recent post and enjoyed it enough to leave a comment. I've been following what you share for a little while now and would love to connect and keep up with your work at {{currentCompany | your team}}.
+
+**B08 — shared message**
+
+> {{firstName}}, I've been enjoying your posts enough that I wanted to reach out directly instead of just liking from the sidelines. The short version: I help teams like {{currentCompany | yours}} with [your offer], and a lot of what you've been sharing lines up with what we tend to work on. No pitch and no rush, I'd genuinely just be curious to hear what you're focused on right now. Worth a quick chat?
+
+B04, B05, B07 and B10 contain no invitation/DM copy to transcribe. B09 and B11–B13 have blank **Edit message to proceed** fields rather than supplied message samples. Treat blanks as missing content, never as runnable empty messages.
+
+#### D. Development contract for templates and conditions
+
+The following are Campaign requirements derived from these references, not a reverse-engineered Botdog schema:
+
+- Store a stable template ID, revision, name, summary, source/date, audience/use-case/industry tags, product requirements, required capabilities, availability reason, entry connection rules, steps, waits, branch destinations, and editable content. Keep source text separate from any Gershon adaptation.
+- A template must copy into an independent draft. Editing it cannot alter the library definition or other campaigns. Pin the selected template revision in the draft/campaign record.
+- Import compatibility maps Botdog `firstName` → Campaign `first_name` and `currentCompany` → `company`, preserving fallback text. Validate through the v1 template renderer; do not silently add unknown variables. Add fallbacks where required by real contact data.
+- Explicit connection outcomes: **already connected**, **not connected**, **invitation already pending**, and **unknown/error**. Never send a duplicate invitation to a pending prospect. In v1, defer or stop with a visible reason if a pending-invitation path is not supported. Connection unknown/error is not evidence of eligibility to send.
+- Acceptance branches need a timeout, Yes/No destinations, and a defined terminal outcome. v1 No = `invite_expired` and stop; no auto-withdraw or InMail fallback. Already-connected prospects route to message 1 under the v1 brief, even where a Botdog reference skips them.
+- A future qualification condition needs pass/fail/unknown destinations and a reason. For v1, use existing Radar criteria or manual qualification; do not implement AI review from a reference label.
+- Reply detection overrides all waits and branches. Stop and cancel pending sends as required by the engine brief. Thread send conditions cannot override this rule. Recheck eligibility immediately before each action.
+- Validate graph destinations and supported capabilities before enabling Start. Show failures beside the affected step. A reference-only step cannot become an executable action through copying, API import or a saved template.
+- Preserve wait units (hours vs days), connection-relative timing and sender working windows. B04/B07 are finite four-touch/four-cycle sequences; never convert them into unbounded recurring actions.
+- If engagement actions are added later: configure latest vs random recent post, missing-post behavior, duplicate-post protection, and whether action failure skips the step or stops the enrollment. Do not claim an engagement happened in a later message unless recorded successfully.
+- **Review Before Sending** is an observed Botdog badge, not a confirmed approval mechanism. Campaign must distinguish template review, draft approval and actual per-action approval if those are later implemented.
+
+Acceptance criteria for the library development work:
+
+1. All 13 reference names above are documented and traceable; no missing text is fabricated.
+2. Sidebar exposes the captured non-AI taxonomy, search, selected filters, clear/reset and an accurate empty state; product availability reflects actual sender and engine capabilities.
+3. A supported template opens an editable independent draft with the correct message count and waits. Unsupported references explain their missing capabilities and cannot start.
+4. Already-connected, pending-invitation, accepted, timeout, unknown/error and reply cases take explicit paths; no duplicate invite, unaccepted-connection DM or send after reply.
+5. Sample placeholders, missing fallbacks, empty required text and unsupported steps block launch. Sample customer-result claims require replacement with verified copy.
+6. B03 preserves its distinct 2-hour / 1-day / 2-day cadence; B11 uses 2-hour / 1-day / 1-day. B04 and B07 terminate after four touches/cycles.
+7. No-AI v1 derivatives clearly replace qualification with Radar rules and omit unsupported engagement actions; the source templates remain labeled references.
+
 ### 4.3 Campaign settings & lifecycle
 - Name (convention `NN - Client - Topic`), client, sender, timezone, working hours (default 9:00–18:00), active days, start date/time, optional end date, priority flag, daily cap for this campaign (optional, within sender limits).
 - Actions: start, pause, resume, pause new enrollments only, add prospects, duplicate, export CSV, archive, delete (draft only; running → archive).
@@ -235,3 +353,4 @@ Design: Gershon unified design — Linalysis design as master, Gershon.ai red as
 2. Supabase project: reuse Radar's project or a new one linked by API.
 3. Which senders in pilot (Olivier only, or also managed identities for clients).
 4. When to cancel Botdog (after M5 pilot shows equal or better acceptance/reply rates).
+
