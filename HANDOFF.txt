@@ -1,0 +1,86 @@
+================================================================
+HANDOFF.txt  -  campaign
+Written by: Claude (nightly push) - token-limit handoff protocol
+Date: 2026-11-27
+Reason: Another AI can continue this work from this file alone.
+================================================================
+
+0. READ FIRST
+----------------------------------------------------------------
+Master handoff (operating rules, defaults, index of all repos):
+  github.com/gershonconsulting/memory -> HANDOFF.txt
+Olivier Attia (founder / CTO) is non-technical: never hand him commands
+or scripts. Reply with GREEN CHECK (done + link) or RED CROSS (+ exactly
+3 options he can action). Ariel = code/repo, Charles = admin panels.
+
+1. WHAT THIS REPO IS
+----------------------------------------------------------------
+Name        : campaign.gershon.ai (not live yet)
+What it does: Simple LinkedIn drip-campaign platform. Takes prospects
+              collected by radar.gershon.ai and contacts them through
+              timed sequences (visit -> invite -> follow-ups). Replaces
+              Botdog. No AI features.
+Repo files on main (2026-11-27): README.md, STATUS.md,
+              docs/SPECIFICATION.md (spec v1.0), research/botdog/
+              (feature inventory, how-it-works note, 44 blurred screenshots).
+              No application code on main.
+
+2. STACK AND DEPLOY ROUTE (PLANNED)
+----------------------------------------------------------------
+Hosting     : Cloudflare Pages (campaign.gershon.ai) + Supabase
+Deploy      : GitHub Actions -> Cloudflare Pages + Supabase migrations
+              (planned; no workflow exists; workflow files cannot be
+              written from the cloud, Charles adds them in the web UI)
+LinkedIn execution provider: Unipile recommended, NOT decided
+Default branch: main
+Secrets     : names only, values in 1Password (none in repo)
+
+3. DONE  [DONE]
+----------------------------------------------------------------
+- Botdog reviewed page by page (2026-11-23), screenshots stored (blurred)
+- Research on how Botdog runs without an extension
+- Full specification v1.0
+
+4. PENDING  [TODO]
+----------------------------------------------------------------
+- Decide LinkedIn execution provider and open the account
+- Decide Supabase project (reuse Radar's or a new one)
+- Build milestones M1-M5 (spec section 13)
+- Make the repo PRIVATE (screenshots hold Gershon campaign data, the
+  repo is currently PUBLIC)
+- OPEN PRs, do not touch their branches without Olivier's OK:
+    #1 "Add working Campaign preview with Radar styling and core
+        outreach workflows"  (branch codex/campaign-operator-preview)
+    #7 "Remove fake app data and add real prospect lists with mapping
+        indicators"  (branch codex/real-campaign-lists)
+  Review order not recorded; #7 builds on a preview like #1.
+
+5. MISSING / NOT BUILT
+----------------------------------------------------------------
+- Backend, sequence engine, inbox, auth, deploy pipeline (all of M1-M5)
+
+6. KNOWN BUGS / ISSUES
+----------------------------------------------------------------
+- A test draft "New campaign" (0 contacts) exists in Botdog; can be deleted.
+
+7. NEXT ACTION - START HERE
+----------------------------------------------------------------
+  -> Ask Olivier to decide the LinkedIn provider (Unipile recommended),
+     make the repo private, then review PR #1 and PR #7.
+
+8. GOTCHAS
+----------------------------------------------------------------
+- Repo is public but holds campaign data: make private before adding more.
+- LinkedIn automation risks account restrictions; see memory notes on
+  LinkedIn account health.
+- Related: radar (source of prospects), nexashare, sales (Claude
+  campaigns pages).
+
+9. CONTACT
+----------------------------------------------------------------
+Olivier Attia - oattia@gmail.com | report@gershonconsulting.com
+
+Last updated 2026-11-27 by nightly push
+================================================================
+END OF HANDOFF
+================================================================
