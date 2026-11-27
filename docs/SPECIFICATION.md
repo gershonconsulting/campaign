@@ -190,6 +190,75 @@ Acceptance criteria for the library development work:
 6. B03 preserves its distinct 2-hour / 1-day / 2-day cadence; B11 uses 2-hour / 1-day / 1-day. B04 and B07 terminate after four touches/cycles.
 7. No-AI v1 derivatives clearly replace qualification with Radar rules and omit unsupported engagement actions; the source templates remain labeled references.
 
+### 4.2.2 Knowledge-base-backed suggestions throughout the campaign workflow
+
+**Product requirement added by Olivier, 2026-11-27:** the drip-campaign tool should consistently suggest useful next steps based on the knowledge Gershon already has. Guidance is a core part of campaign creation and editing, not a separate generic chat window or a one-time template picker.
+
+**Current implementation status:** the application has saved templates, snippets, campaign steps and imported prospect fields. It does not yet have a connected knowledge-base service, source approval/version records or a contextual recommendation engine. This section specifies development work; it does not claim those connections or suggestions are live.
+
+#### A. What “always suggestions” means
+
+- Keep a **Suggestions** panel available throughout the draft workflow: objective/audience selection, template selection, sequence editing, individual message editing, delay/condition editing and pre-launch review. Refresh recommendations when the relevant context changes. Do not interrupt typing with popups or silently replace draft content.
+- Show a small ranked set, normally up to three relevant suggestions. Each card contains the proposed change, a plain-language reason, the supporting source and its date/version, and **Preview**, **Use in draft**, **Edit**, and **Dismiss** actions as appropriate. Applying a suggestion changes only the explicit draft fields shown in the preview and supports Undo.
+- Existing and running campaigns can show read-only recommendations, but v1 running campaigns remain locked. Offer a new draft/duplicate for a change that cannot be applied to the running campaign.
+- Always show the panel's state, not always a fabricated answer: loading, grounded suggestions, no relevant approved knowledge, conflicting/outdated evidence, or temporarily unavailable. When evidence is missing, suggest the specific information to add (for example, an approved proof point), rather than inventing message claims.
+
+#### B. Knowledge sources and access
+
+Candidate sources, subject to source selection and actual connection: approved client/product briefs, ICP and positioning documents, approved offers and proof points, tone/language guidance, approved snippets/templates, Radar prospect facts, and approved prior campaign examples. The source-system choice remains open; do not assume a particular Drive folder, CRM, website or repository is already connected.
+
+- Separate **client facts and approved copy**, **prospect context**, **workflow rules**, **third-party reference patterns**, and **measured outcomes**. A Botdog example can support a cadence or message structure; it cannot substantiate Gershon's services, a customer result or prior engagement with a prospect.
+- Record source owner, workspace/client scope, document/location, revision, approval status, effective/expiry dates when applicable, last successful refresh and whether client material may be sent to an external processing service. Enforce access during retrieval as well as when displaying citations.
+- Default to the selected client's approved material plus explicitly shared Gershon material. Never retrieve another client's confidential material merely because the same operator can access both clients.
+- Client-approved instructions take precedence over shared style/template defaults. Prospect data personalizes context but does not override the approved offer. If current sources disagree about a material fact, show the conflict and withhold that claim pending resolution.
+- Exclude deleted, revoked, expired and unapproved sources. Revalidate sources when applying a suggestion; invalidate affected recommendations after access revocation or a source update. Show source freshness rather than implying all content is current.
+- Treat imported documents and messages as evidence, not executable instructions. Embedded requests to reveal data, change access, send messages or override campaign rules have no authority.
+
+#### C. Recommendations by stage
+
+| Context | Suggested help | Required grounding |
+|---|---|---|
+| Campaign objective / audience | Suitable objective, ICP gaps, prospect segment, language and relevant offer | Client brief, approved ICP, actual Radar fields; do not infer buying intent from job title alone |
+| Template selection | A suitable available template, explanation of fit, missing capabilities or content | Approved template metadata, connection state, campaign objective and implemented sender/engine capabilities |
+| Invitation / message | Relevant opening, value proposition, proof point, CTA, shorter copy or a suitable approved snippet | Approved client/product material plus verified prospect facts; source references for factual claims |
+| Follow-up | A distinct reason to continue: useful insight, verified proof or a clear next question | Prior draft messages and approved material; avoid repeating the same “just following up” pitch |
+| Delay / branch | Explain spacing, acceptance timeout, already-connected/pending paths and when to stop | Authoritative sending-engine rules, actual connection state and reference cadence labeled as a heuristic |
+| Pre-launch | Missing variables, unresolved placeholders, unsupported actions, uncovered paths and unsupported claims | Current draft, rendered preview, source validity and the existing launch validator |
+| Campaign review | Observed reply/acceptance results and a proposed next draft | Actual recorded outcomes, date range and sample counts; no invented uplift or unsupported “best performing” claim |
+
+Learning from campaigns is explicit and evidence-based. Operators may promote reviewed messages or lessons to approved knowledge with provenance. Do not automatically turn every sent message, private reply or campaign result into a reusable cross-client fact. Distinguish accepted/dismissed suggestion feedback from measured campaign performance; neither proves causal improvement.
+
+#### D. Suggestion and retrieval contract
+
+Planned records (not an existing API/schema):
+
+- `knowledge_sources`: source identifier/location, workspace/client scope, revision, approval, access policy, freshness and lifecycle state.
+- `knowledge_items`: source ID/revision and precise section/span, content kind, approved content, product/ICP/language/use-case tags and validity dates. Index only authorized content; the original source remains the authority.
+- `campaign_suggestions`: campaign/draft revision, optional step ID, context fingerprint, suggestion kind, proposed draft patch, reason, evidence references, rule/version, creation time, state (`proposed`, `applied`, `dismissed`, `stale`) and actor. Store only the excerpts needed for review, with the same access controls as the source.
+- `suggestion_feedback`: suggestion ID, operator decision and optional reason. Feedback does not update approved knowledge or execution rules automatically.
+
+Retrieve by selected workspace/client, permissions, source validity and approval first, then rank by objective, audience, offer, language and selected step. Every factual recommendation needs inspectable supporting evidence. A rule-based recommendation cites the rule; a cadence pattern cites its reference and says it is a starting point rather than a proven optimum. Do not display invented confidence percentages.
+
+Use request/draft revision checks to discard stale responses. Preserve ongoing edits during refresh. Applying a proposal must verify that its target fields and evidence still match the preview; otherwise regenerate it. Apply related field changes atomically, record the decision, and allow Undo without overwriting unrelated edits.
+
+#### E. Implementation scope and execution boundaries
+
+- First deliver the source/provenance model, approved snippets/templates, contextual retrieval, rule-based guidance and explicit draft application. This fits the existing no-AI v1 boundary. Model-generated drafting is a separate extension requiring a defined server-side provider, data-processing policy and grounded-output validation; it must not be silently substituted for connected knowledge.
+- Keep all source access and any future model credentials server-side. Apply workspace/client access controls to retrieval, cached results, evidence previews and feedback. No secrets in the browser or logs; do not log complete private documents, prospect threads or message bodies for diagnostics.
+- Suggestions never send messages, enroll prospects, start campaigns, alter live schedules or change global sending rules. Using a suggestion is draft editing, followed by the normal preview/validation/start flow. Reply stops, blacklist, connection eligibility, working windows, limits and the kill switch always take precedence.
+- On retrieval failure, preserve the draft and display a useful unavailable state. Do not label canned text as knowledge-backed or claim an unconnected source was searched.
+
+#### F. Delivery acceptance criteria
+
+1. Relevant guidance remains available at each draft stage listed above and updates when objective, client, audience, step or message context changes.
+2. Every proposed factual claim opens the exact authorized source section/revision that supports it; workflow advice opens the applicable rule/reference.
+3. Client A's private knowledge never appears in Client B's retrieval results, citations, caches or suggestions. Access revocation invalidates existing proposals.
+4. An empty/unconnected knowledge base asks for useful missing material and produces no invented proof, offer, engagement history or performance claim. Conflicting/expired sources are visibly handled.
+5. Preview shows the exact proposed change. Use in draft affects only those fields, preserves unrelated edits, records the source/revision and supports Undo. Late responses cannot overwrite current edits.
+6. Blank drafts receive grounded starting suggestions when approved sources exist; populated drafts receive targeted improvements rather than repeated generic copy.
+7. Unsupported capabilities and running-campaign locks cannot be bypassed through suggestions. No suggestion or approval of draft text triggers a send.
+8. Recommendation quality is reviewed against representative approved client material and missing/conflicting-source cases before release. Report actual acceptance/dismissal and campaign outcomes separately.
+
 ### 4.3 Campaign settings & lifecycle
 - Name (convention `NN - Client - Topic`), client, sender, timezone, working hours (default 9:00–18:00), active days, start date/time, optional end date, priority flag, daily cap for this campaign (optional, within sender limits).
 - Actions: start, pause, resume, pause new enrollments only, add prospects, duplicate, export CSV, archive, delete (draft only; running → archive).
